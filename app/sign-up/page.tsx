@@ -31,7 +31,7 @@ export default function SignUp() {
     setSuccess(false)
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
+      setError("Your passwords don't match. Even in darkness, consistency matters.")
       setLoading(false)
       return
     }
@@ -50,11 +50,25 @@ export default function SignUp() {
       })
 
       if (error) {
-        if (error.message.includes("already registered")) {
-          setError("User already exists. Please sign in instead.")
+        // Custom error messages with dark humor
+        let errorMessage = ""
+
+        if (error.message.includes("already registered") || error.message.includes("User already registered")) {
+          errorMessage =
+            "This soul is already claimed by the darkness. Try signing in instead, or choose a different vessel."
+        } else if (error.message.includes("Password should be at least")) {
+          errorMessage = "Your password is too weak to survive the apocalypse. Make it stronger, at least 6 characters."
+        } else if (error.message.includes("Invalid email")) {
+          errorMessage = "That email address looks cursed. Please provide a valid one for your dark transformation."
+        } else if (error.message.includes("Network")) {
+          errorMessage = "The connection to the shadow realm has been severed. Check your internet."
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Patience, young padawan of darkness. The servers are overwhelmed by your enthusiasm."
         } else {
-          setError(error.message)
+          errorMessage = `The void responds: "${error.message}"`
         }
+
+        setError(errorMessage)
       } else if (data.user) {
         // Account created successfully
         setSuccess(true)

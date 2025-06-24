@@ -70,6 +70,22 @@ export default function Dashboard() {
     "🎭",
   ]
 
+  const getHumanReadableError = (errorMessage: string): string => {
+    if (errorMessage.includes("Network")) {
+      return "The digital underworld is unreachable. Check your connection."
+    } else if (errorMessage.includes("JWT")) {
+      return "Your dark session has expired. Please sign in again."
+    } else if (errorMessage.includes("permission")) {
+      return "The shadows deny you access. Insufficient permissions."
+    } else if (errorMessage.includes("not found")) {
+      return "What you seek has vanished into the void."
+    } else if (errorMessage.includes("timeout")) {
+      return "The darkness is taking too long to respond. Try again."
+    } else {
+      return `Something wicked happened: ${errorMessage}`
+    }
+  }
+
   useEffect(() => {
     checkUser()
   }, [])
@@ -97,7 +113,7 @@ export default function Dashboard() {
 
       if (userError) {
         console.error("Auth error:", userError)
-        setError(`Authentication error: ${userError.message}`)
+        setError(`The authentication spirits are restless: ${getHumanReadableError(userError.message)}`)
         setLoading(false)
         return
       }
@@ -132,7 +148,7 @@ export default function Dashboard() {
 
       if (error) {
         console.error("Projects fetch error:", error)
-        setError(`Error fetching projects: ${error.message}`)
+        setError(`Failed to summon your projects: ${getHumanReadableError(error.message)}`)
         setLoading(false)
         return
       }
@@ -299,7 +315,7 @@ export default function Dashboard() {
         })
       }
     } catch (error: any) {
-      setError(error.message)
+      setError(`Failed to forge your task in the darkness: ${getHumanReadableError(error.message)}`)
     } finally {
       setIsAddingTask(false)
     }
@@ -328,7 +344,7 @@ export default function Dashboard() {
         ),
       )
     } catch (error: any) {
-      setError(error.message)
+      setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
     }
   }
 

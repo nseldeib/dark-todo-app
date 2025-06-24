@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Skull, Zap, ArrowRight } from "lucide-react"
+import { Skull, ArrowRight } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export default function LandingPage() {
@@ -59,10 +59,10 @@ export default function LandingPage() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Button size="lg" asChild className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg glow-effect">
               <Link href="/sign-up" className="flex items-center space-x-2">
-                <span>Enter the Darkness</span>
+                <span>💀 Enter the Darkness</span>
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </Button>
@@ -72,16 +72,8 @@ export default function LandingPage() {
               asChild
               className="border-gray-700 text-gray-300 hover:bg-gray-800 px-8 py-4 text-lg"
             >
-              <Link href="/sign-in">Already Initiated</Link>
-            </Button>
-          </div>
-
-          {/* Demo hint */}
-          <div className="mb-16">
-            <Button variant="outline" asChild className="border-gray-700 text-gray-300 hover:bg-gray-800 px-6 py-3">
-              <Link href="/sign-up" className="flex items-center space-x-2">
-                <Zap className="h-4 w-4" />
-                <span>Try it out</span>
+              <Link href="/sign-in" className="flex items-center space-x-2">
+                <span>🖤 Already Initiated</span>
               </Link>
             </Button>
           </div>

@@ -34,11 +34,24 @@ export default function SignIn() {
       })
 
       if (error) {
-        if (email === "demo@todoapp.dev") {
-          setError("Demo account not found. Please create it first using the sign-up page.")
+        // Custom error messages with dark humor
+        let errorMessage = ""
+
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Your credentials have been rejected by the darkness. Try again, mortal."
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Your soul hasn't been verified yet. Check your email for the ritual confirmation."
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Whoa there, eager one. The shadows need a moment to process your desperation."
+        } else if (error.message.includes("Network")) {
+          errorMessage = "The digital realm is unreachable. Check your connection to the underworld."
+        } else if (email === "demo@todoapp.dev") {
+          errorMessage = "The demo spirit has vanished. Create this cursed account first via sign-up."
         } else {
-          setError(error.message)
+          errorMessage = `The darkness whispers: "${error.message}"`
         }
+
+        setError(errorMessage)
       } else {
         // Show loading animation before redirect
         setLoading(false)
