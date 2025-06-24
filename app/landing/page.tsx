@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Skull, ArrowRight } from "lucide-react"
+import { Skull, ArrowRight, Github } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export default function LandingPage() {
@@ -27,7 +27,13 @@ export default function LandingPage() {
           <Skull className="h-8 w-8 text-red-500" />
           <span className="text-2xl font-bold text-white">DarkTodo</span>
         </div>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="icon" asChild className="text-gray-300 hover:text-white hover:bg-gray-800">
+            <Link href="https://github.com/nseldeib/dark-todo-app" target="_blank" rel="noopener noreferrer">
+              <Github className="h-5 w-5" />
+              <span className="sr-only">View on GitHub</span>
+            </Link>
+          </Button>
           <Button variant="ghost" asChild className="text-gray-300 hover:text-white hover:bg-gray-800">
             <Link href="/sign-in">Sign In</Link>
           </Button>
@@ -88,6 +94,15 @@ export default function LandingPage() {
             <span className="text-gray-400">DarkTodo - Productivity in the Shadows</span>
           </div>
           <div className="flex items-center space-x-6">
+            <Link
+              href="https://github.com/nseldeib/dark-todo-app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 hover:text-gray-300 transition-colors flex items-center space-x-2"
+            >
+              <Github className="h-4 w-4" />
+              <span className="text-sm">View Source</span>
+            </Link>
             <span className="text-gray-500 text-sm">Built with 🖤 using v0</span>
           </div>
         </div>
