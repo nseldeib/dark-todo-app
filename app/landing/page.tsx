@@ -2,9 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Skull, Zap, Shield, Database, Palette, Code2, ArrowRight } from "lucide-react"
+import { Skull, Zap, ArrowRight } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export default function LandingPage() {
@@ -13,13 +11,6 @@ export default function LandingPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const techStack = [
-    { name: "Next.js", icon: Code2, description: "React Framework" },
-    { name: "Supabase", icon: Database, description: "Backend & Auth" },
-    { name: "Tailwind", icon: Palette, description: "Styling" },
-    { name: "TypeScript", icon: Shield, description: "Type Safety" },
-  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950 overflow-hidden">
@@ -87,68 +78,12 @@ export default function LandingPage() {
 
           {/* Demo hint */}
           <div className="mb-16">
-            <Badge variant="outline" className="border-yellow-700 text-yellow-300 bg-yellow-900/20 px-4 py-2">
-              <Zap className="h-4 w-4 mr-2" />
-              Try the demo: demo@todoapp.dev
-            </Badge>
-          </div>
-        </div>
-
-        {/* Tech Stack */}
-        <div
-          className={`transition-all duration-1000 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-8">Forged with Modern Technology</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {techStack.map((tech, index) => (
-                <Card
-                  key={tech.name}
-                  className={`task-card p-6 text-center hover:scale-105 transition-all duration-300 delay-${index * 100}`}
-                >
-                  <tech.icon className="h-8 w-8 text-red-500 mx-auto mb-3" />
-                  <h3 className="text-white font-semibold mb-1">{tech.name}</h3>
-                  <p className="text-gray-400 text-sm">{tech.description}</p>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Features Preview */}
-        <div
-          className={`mt-20 transition-all duration-1000 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <div className="max-w-3xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-8 text-left">
-              <div className="space-y-3">
-                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                  <Skull className="h-6 w-6 text-red-500" />
-                </div>
-                <h3 className="text-white font-semibold text-lg">Dark by Design</h3>
-                <p className="text-gray-400">
-                  Built for those who prefer the shadows. Easy on the eyes, hard on procrastination.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                  <Zap className="h-6 w-6 text-red-500" />
-                </div>
-                <h3 className="text-white font-semibold text-lg">Lightning Fast</h3>
-                <p className="text-gray-400">
-                  No bloat, no distractions. Just pure productivity in its most efficient form.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                  <Shield className="h-6 w-6 text-red-500" />
-                </div>
-                <h3 className="text-white font-semibold text-lg">Secure & Private</h3>
-                <p className="text-gray-400">
-                  Your tasks are yours alone. Protected by modern authentication and encryption.
-                </p>
-              </div>
-            </div>
+            <Button variant="outline" asChild className="border-gray-700 text-gray-300 hover:bg-gray-800 px-6 py-3">
+              <Link href="/sign-up" className="flex items-center space-x-2">
+                <Zap className="h-4 w-4" />
+                <span>Try it out</span>
+              </Link>
+            </Button>
           </div>
         </div>
       </main>
@@ -161,7 +96,7 @@ export default function LandingPage() {
             <span className="text-gray-400">DarkTodo - Productivity in the Shadows</span>
           </div>
           <div className="flex items-center space-x-6">
-            <span className="text-gray-500 text-sm">Built with Next.js & Supabase</span>
+            <span className="text-gray-500 text-sm">Built with 🖤 using v0</span>
           </div>
         </div>
       </footer>

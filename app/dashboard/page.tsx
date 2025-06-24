@@ -35,10 +35,56 @@ export default function Dashboard() {
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
   const router = useRouter()
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+
+  const darkEmojis = [
+    "🖤",
+    "💀",
+    "👹",
+    "😈",
+    "🔥",
+    "⚡",
+    "✨",
+    "🌟",
+    "💫",
+    "🌙",
+    "🦇",
+    "🕷️",
+    "🐍",
+    "🗡️",
+    "⚔️",
+    "🏴",
+    "💎",
+    "🔮",
+    "🎯",
+    "🎪",
+    "🌚",
+    "🌑",
+    "⚫",
+    "🔴",
+    "🟣",
+    "🔺",
+    "💥",
+    "⭐",
+    "🌠",
+    "🎭",
+  ]
 
   useEffect(() => {
     checkUser()
   }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (showEmojiPicker && !target.closest(".relative")) {
+        setShowEmojiPicker(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [showEmojiPicker])
 
   const checkUser = async () => {
     try {
@@ -435,14 +481,41 @@ export default function Dashboard() {
                       <Label htmlFor="emoji" className="text-gray-300">
                         Emoji
                       </Label>
-                      <Input
-                        id="emoji"
-                        value={newTask.emoji}
-                        onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
-                        className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
-                        placeholder="📝"
-                        maxLength={2}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="emoji"
+                          value={newTask.emoji}
+                          onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
+                          className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 pr-10"
+                          placeholder="📝"
+                          maxLength={2}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-gray-700 border-gray-600"
+                          size="sm"
+                        >
+                          😈
+                        </Button>
+                        {showEmojiPicker && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-md p-3 grid grid-cols-6 gap-2 z-10 max-h-32 overflow-y-auto">
+                            {darkEmojis.map((emoji, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => {
+                                  setNewTask({ ...newTask, emoji })
+                                  setShowEmojiPicker(false)
+                                }}
+                                className="text-lg hover:bg-gray-800 rounded p-1 transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="priority" className="text-gray-300">
@@ -576,7 +649,7 @@ export default function Dashboard() {
 
                           {task.due_date && (
                             <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                              <Calendar className="h-3 w-3" />
+                              <Calendar className="h-3 w-3 text-red-400" />
                               <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                             </div>
                           )}
