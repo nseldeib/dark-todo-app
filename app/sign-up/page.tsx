@@ -207,12 +207,6 @@ export default function SignUp() {
     }
   }
 
-  const fillDemoCredentials = () => {
-    setEmail("demo@todoapp.dev")
-    setPassword("DarkTodo2024!")
-    setConfirmPassword("DarkTodo2024!")
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-red-950 p-4">
       <Card className="w-full max-w-md bg-black/80 border-red-900/30 glow-effect">
@@ -233,18 +227,6 @@ export default function SignUp() {
             </Alert>
           ) : (
             <form onSubmit={handleSignUp} className="space-y-4">
-              <div className="mb-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-yellow-700 text-yellow-300 hover:bg-yellow-900/20 mb-2"
-                  onClick={fillDemoCredentials}
-                  disabled={loading}
-                >
-                  🎯 Fill Demo Credentials
-                </Button>
-                <p className="text-xs text-gray-500 text-center">Click above to auto-fill demo account info</p>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-300">
                   Email
@@ -320,9 +302,7 @@ export default function SignUp() {
           <Alert className="mt-4 border-blue-900/50 bg-blue-950/20">
             <Info className="h-4 w-4" />
             <AlertDescription className="text-blue-400 text-xs">
-              <strong>Demo Account:</strong> demo@todoapp.dev / DarkTodo2024!
-              <br />
-              Use "Fill Demo Credentials" to auto-fill the form.
+              Create your account to start organizing tasks in the dark realm of productivity.
             </AlertDescription>
           </Alert>
         </CardContent>
