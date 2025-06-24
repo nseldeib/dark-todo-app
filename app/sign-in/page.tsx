@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Skull, Eye, EyeOff, Info } from "lucide-react"
+import { Skull, Eye, EyeOff } from "lucide-react"
 
 export default function SignIn() {
   const [email, setEmail] = useState("")
@@ -138,8 +138,8 @@ export default function SignIn() {
 
             <Button
               type="button"
-              variant="outline"
-              className="w-full border-gray-700 text-gray-300 hover:bg-gray-800"
+              variant="ghost"
+              className="w-full text-gray-500 hover:text-gray-400 hover:bg-gray-900/30 text-sm"
               onClick={handleDemoLogin}
               disabled={loading}
             >
@@ -155,15 +155,6 @@ export default function SignIn() {
               </Link>
             </p>
           </div>
-
-          <Alert className="mt-4 border-blue-900/50 bg-blue-950/20">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-blue-400 text-xs">
-              <strong>Demo Account:</strong> demo@todoapp.dev / DarkTodo2024!
-              <br />
-              Create the demo account first via sign-up, then sign in here.
-            </AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
       {showLoadingAnimation && (
