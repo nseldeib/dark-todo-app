@@ -36,39 +36,14 @@ export default function Dashboard() {
   const [debugInfo, setDebugInfo] = useState("")
   const router = useRouter()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [selectedEmojiCategory, setSelectedEmojiCategory] = useState("popular")
 
-  const darkEmojis = [
-    "🖤",
-    "💀",
-    "👹",
-    "😈",
-    "🔥",
-    "⚡",
-    "✨",
-    "🌟",
-    "💫",
-    "🌙",
-    "🦇",
-    "🕷️",
-    "🐍",
-    "🗡️",
-    "⚔️",
-    "🏴",
-    "💎",
-    "🔮",
-    "🎯",
-    "🎪",
-    "🌚",
-    "🌑",
-    "⚫",
-    "🔴",
-    "🟣",
-    "🔺",
-    "💥",
-    "⭐",
-    "🌠",
-    "🎭",
-  ]
+  const darkEmojis = {
+    popular: ["🖤", "💀", "👹", "😈", "🔥", "⚡", "✨", "🌟"],
+    creatures: ["🦇", "🕷️", "🐍", "🐺", "🦅", "🐉", "👻", "🧛"],
+    objects: ["🗡️", "⚔️", "🏴", "💎", "🔮", "⚰️", "🕯️", "🌙"],
+    symbols: ["💥", "⭐", "🌠", "🎭", "🌚", "🌑", "⚫", "🔴", "🟣", "🔺"],
+  }
 
   const getHumanReadableError = (errorMessage: string): string => {
     if (errorMessage.includes("Network")) {
@@ -492,31 +467,50 @@ export default function Dashboard() {
                       rows={3}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="emoji" className="text-gray-300">
-                        Emoji
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="emoji"
-                          value={newTask.emoji}
-                          onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
-                          className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 pr-10"
-                          placeholder="📝"
-                          maxLength={2}
-                        />
-                        <Button
-                          type="button"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-gray-700 border-gray-600"
-                          size="sm"
-                        >
-                          😈
-                        </Button>
-                        {showEmojiPicker && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-md p-3 grid grid-cols-6 gap-2 z-10 max-h-32 overflow-y-auto">
-                            {darkEmojis.map((emoji, index) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="emoji" className="text-gray-300 flex items-center">
+                      <span className="mr-2">Emoji</span>
+                      {newTask.emoji && <span className="text-lg">{newTask.emoji}</span>}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="emoji"
+                        value={newTask.emoji}
+                        onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 pr-10"
+                        placeholder="Type or paste any emoji..."
+                        maxLength={4}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-gray-700 border-gray-600 transition-all duration-200"
+                        size="sm"
+                      >
+                        😈
+                      </Button>
+                      {showEmojiPicker && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-md p-3 z-10 shadow-2xl">
+                          {/* Category tabs */}
+                          <div className="flex space-x-1 mb-3 border-b border-gray-700 pb-2">
+                            {Object.keys(darkEmojis).map((category) => (
+                              <button
+                                key={category}
+                                type="button"
+                                onClick={() => setSelectedEmojiCategory(category)}
+                                className={`px-2 py-1 text-xs rounded transition-colors capitalize ${
+                                  selectedEmojiCategory === category
+                                    ? "bg-red-600 text-white"
+                                    : "text-gray-400 hover:text-white hover:bg-gray-800"
+                                }`}
+                              >
+                                {category}
+                              </button>
+                            ))}
+                          </div>
+                          {/* Emoji grid */}
+                          <div className="grid grid-cols-8 gap-1 max-h-32 overflow-y-auto mb-3">
+                            {darkEmojis[selectedEmojiCategory].map((emoji, index) => (
                               <button
                                 key={index}
                                 type="button"
@@ -524,60 +518,127 @@ export default function Dashboard() {
                                   setNewTask({ ...newTask, emoji })
                                   setShowEmojiPicker(false)
                                 }}
-                                className="text-lg hover:bg-gray-800 rounded p-1 transition-colors"
+                                className="text-lg hover:bg-gray-800 rounded p-1 transition-all duration-150 hover:scale-110"
+                                title={`Select ${emoji}`}
                               >
                                 {emoji}
                               </button>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="priority" className="text-gray-300">
-                        Priority
-                      </Label>
-                      <Select
-                        value={newTask.priority}
-                        onValueChange={(value) => setNewTask({ ...newTask, priority: value })}
-                      >
-                        <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-700">
-                          <SelectItem value="low" className="text-white">
-                            Low
-                          </SelectItem>
-                          <SelectItem value="medium" className="text-white">
-                            Medium
-                          </SelectItem>
-                          <SelectItem value="high" className="text-white">
-                            High
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                          {/* Native emoji picker button */}
+                          <div className="border-t border-gray-700 pt-3">
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                // Focus the emoji input to trigger native emoji picker
+                                const emojiInput = document.getElementById("emoji") as HTMLInputElement
+                                if (emojiInput) {
+                                  emojiInput.focus()
+                                  // Try to trigger native emoji picker on supported browsers
+                                  if (navigator.userAgent.includes("Mac")) {
+                                    // On Mac, Cmd+Ctrl+Space opens emoji picker
+                                    const event = new KeyboardEvent("keydown", {
+                                      key: " ",
+                                      code: "Space",
+                                      metaKey: true,
+                                      ctrlKey: true,
+                                      bubbles: true,
+                                    })
+                                    emojiInput.dispatchEvent(event)
+                                  }
+                                }
+                                setShowEmojiPicker(false)
+                              }}
+                              className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm py-2"
+                              size="sm"
+                            >
+                              <span className="mr-2">🎭</span>
+                              Open System Emoji Picker
+                            </Button>
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                              Or type directly in the input field above
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="due_date" className="text-gray-300">
-                      Due Date (optional)
+                    <Label htmlFor="priority" className="text-gray-300">
+                      Priority
                     </Label>
-                    <Input
-                      id="due_date"
-                      type="datetime-local"
-                      value={newTask.due_date}
-                      onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                      className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
-                    />
+                    <Select
+                      value={newTask.priority}
+                      onValueChange={(value) => setNewTask({ ...newTask, priority: value })}
+                    >
+                      <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        <SelectItem value="low" className="text-white">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                            <span>Low Priority</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="medium" className="text-white">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+                            <span>Medium Priority</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="high" className="text-white">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                            <span>High Priority</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date" className="text-gray-300 flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 text-red-400" />
+                      Due Date
+                      {newTask.due_date && (
+                        <span className="ml-2 text-xs text-gray-400">
+                          ({new Date(newTask.due_date).toLocaleDateString()})
+                        </span>
+                      )}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="due_date"
+                        type="datetime-local"
+                        value={newTask.due_date}
+                        onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
+                        min={new Date().toISOString().slice(0, 16)}
+                      />
+                      {newTask.due_date && (
+                        <Button
+                          type="button"
+                          onClick={() => setNewTask({ ...newTask, due_date: "" })}
+                          className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-red-600 border-gray-600 transition-colors"
+                          size="sm"
+                          title="Clear due date"
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 rounded-md bg-gray-900/30 border border-gray-700">
                     <Checkbox
                       id="important"
                       checked={newTask.is_important}
                       onCheckedChange={(checked) => setNewTask({ ...newTask, is_important: !!checked })}
-                      className="border-gray-700"
+                      className="border-gray-700 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
                     />
-                    <Label htmlFor="important" className="text-gray-300 text-sm">
+                    <Label htmlFor="important" className="text-gray-300 text-sm flex items-center cursor-pointer">
+                      <Star
+                        className={`h-4 w-4 mr-2 ${newTask.is_important ? "text-red-400 fill-current" : "text-gray-500"}`}
+                      />
                       Mark as important
                     </Label>
                   </div>
