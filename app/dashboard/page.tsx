@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
+  const [showCompleted, setShowCompleted] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -735,94 +736,213 @@ export default function Dashboard() {
         </div>
 
         {/* Tasks List */}
-        <div>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
-            <p className="text-gray-400">Manage your dark productivity empire</p>
-          </div>
+        <div className="space-y-8">
+          {/* Active Tasks Section */}
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Active Tasks</h2>
+              <p className="text-gray-400">Tasks that need your attention</p>
+            </div>
 
-          <div className="space-y-4">
-            {tasks.length === 0 ? (
-              <Card className="bg-black/40 border-gray-800">
-                <CardContent className="py-8 text-center">
-                  <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No tasks yet. Create your first task above!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              tasks.map((task) => (
-                <Card key={task.id} className="task-card">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                          <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                          {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
-                        </div>
-                        {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
-                        {/* Checklist Items */}
-                        {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                          <div className="mb-3 space-y-2">
-                            {checklistItems[task.id].map((item) => (
-                              <div key={item.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  checked={item.is_completed}
-                                  onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                  className="border-gray-600"
-                                />
-                                <span
-                                  className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                >
-                                  {item.text}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-2 mb-2">
-                          {getStatusIcon(task.status)}
-                          <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                        </div>
-
-                        {task.due_date && (
-                          <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                            <Calendar className="h-3 w-3 text-red-400" />
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="ml-4">
-                        <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                          <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700">
-                            <SelectItem value="todo" className="text-white">
-                              To Do
-                            </SelectItem>
-                            <SelectItem value="in_progress" className="text-white">
-                              In Progress
-                            </SelectItem>
-                            <SelectItem value="done" className="text-white">
-                              Done
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Created: {new Date(task.created_at).toLocaleDateString()}
-                      {task.completed_at && (
-                        <span className="ml-4">Completed: {new Date(task.completed_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
+            <div className="space-y-4">
+              {tasks.filter((task) => task.status !== "done").length === 0 ? (
+                <Card className="bg-black/40 border-gray-800">
+                  <CardContent className="py-8 text-center">
+                    <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                    <p className="text-gray-400">All tasks completed! Time to rest in the shadows.</p>
                   </CardContent>
                 </Card>
-              ))
+              ) : (
+                tasks
+                  .filter((task) => task.status !== "done")
+                  .map((task) => (
+                    <Card key={task.id} className="task-card">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                              <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                              {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
+                            </div>
+                            {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+
+                            {/* Checklist Items */}
+                            {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                              <div className="mb-3 space-y-2">
+                                {checklistItems[task.id].map((item) => (
+                                  <div key={item.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      checked={item.is_completed}
+                                      onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                      className="border-gray-600"
+                                    />
+                                    <span
+                                      className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                    >
+                                      {item.text}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex items-center space-x-2 mb-2">
+                              {getStatusIcon(task.status)}
+                              <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                              <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                            </div>
+
+                            {task.due_date && (
+                              <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
+                                <Calendar className="h-3 w-3 text-red-400" />
+                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                              <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-900 border-gray-700">
+                                <SelectItem value="todo" className="text-white">
+                                  To Do
+                                </SelectItem>
+                                <SelectItem value="in_progress" className="text-white">
+                                  In Progress
+                                </SelectItem>
+                                <SelectItem value="done" className="text-white">
+                                  Done
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Created: {new Date(task.created_at).toLocaleDateString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+              )}
+            </div>
+          </div>
+
+          {/* Completed Tasks Section */}
+          <div>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Completed Tasks</h2>
+                <p className="text-gray-400">
+                  {tasks.filter((task) => task.status === "done").length} tasks conquered by the darkness
+                </p>
+              </div>
+              {tasks.filter((task) => task.status === "done").length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  {showCompleted ? "Hide" : "Show"} Completed
+                </Button>
+              )}
+            </div>
+
+            {showCompleted && (
+              <div className="space-y-4">
+                {tasks.filter((task) => task.status === "done").length === 0 ? (
+                  <Card className="bg-black/40 border-gray-800">
+                    <CardContent className="py-8 text-center">
+                      <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400">No completed tasks yet. Get to work!</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  tasks
+                    .filter((task) => task.status === "done")
+                    .map((task) => (
+                      <Card key={task.id} className="task-card opacity-75 bg-green-950/10 border-green-900/30">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                {task.emoji && <span className="text-lg opacity-60">{task.emoji}</span>}
+                                <h3 className="text-lg font-semibold text-white line-through opacity-75">
+                                  {task.title}
+                                </h3>
+                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />}
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              </div>
+                              {task.description && <p className="text-gray-400 mb-3 opacity-75">{task.description}</p>}
+
+                              {/* Checklist Items */}
+                              {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                                <div className="mb-3 space-y-2">
+                                  {checklistItems[task.id].map((item) => (
+                                    <div key={item.id} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        checked={item.is_completed}
+                                        onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                        className="border-gray-600"
+                                      />
+                                      <span
+                                        className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                      >
+                                        {item.text}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Badge className="bg-green-900/20 text-green-400 border-green-900/50">completed</Badge>
+                                <Badge className={`${getPriorityColor(task.priority)} opacity-60`}>
+                                  {task.priority}
+                                </Badge>
+                              </div>
+
+                              {task.due_date && (
+                                <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-60">
+                                  <Calendar className="h-3 w-3 text-red-400" />
+                                  <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                                <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-gray-700">
+                                  <SelectItem value="todo" className="text-white">
+                                    To Do
+                                  </SelectItem>
+                                  <SelectItem value="in_progress" className="text-white">
+                                    In Progress
+                                  </SelectItem>
+                                  <SelectItem value="done" className="text-white">
+                                    Done
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 opacity-75">
+                            Created: {new Date(task.created_at).toLocaleDateString()}
+                            {task.completed_at && (
+                              <span className="ml-4 text-green-400">
+                                ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                )}
+              </div>
             )}
           </div>
         </div>
