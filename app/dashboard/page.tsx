@@ -30,23 +30,22 @@ export default function Dashboard() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
-  const [debugInfo, setDebugInfo] = useState("")
   const [showCompleted, setShowCompleted] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
     if (errorMessage.includes("Network")) {
       return "The digital underworld is unreachable. Check your connection."
-    } else if (errorMessage.includes("JWT")) {
+    } else if (errorMessage.includes("JWT") || errorMessage.includes("token")) {
       return "Your dark session has expired. Please sign in again."
-    } else if (errorMessage.includes("permission")) {
-      return "The shadows deny you access. Insufficient permissions."
+    } else if (errorMessage.includes("permission") || errorMessage.includes("RLS")) {
+      return "The shadows deny you access. Please try refreshing the page."
     } else if (errorMessage.includes("not found")) {
       return "What you seek has vanished into the void."
     } else if (errorMessage.includes("timeout")) {
       return "The darkness is taking too long to respond. Try again."
-    } else if (errorMessage.includes("enum") || errorMessage.includes("invalid input value")) {
-      return "The task status is cursed. Please try refreshing the page."
+    } else if (errorMessage.includes("constraint") || errorMessage.includes("check")) {
+      return "Invalid data detected. Please check your input."
     } else {
       return `Something wicked happened: ${errorMessage}`
     }
@@ -68,8 +67,6 @@ export default function Dashboard() {
 
   const checkUser = async () => {
     try {
-      setDebugInfo("Checking user authentication...")
-
       const {
         data: { user },
         error: userError,
@@ -77,33 +74,27 @@ export default function Dashboard() {
 
       if (userError) {
         console.error("Auth error:", userError)
-        setError(`The authentication spirits are restless: ${getHumanReadableError(userError.message)}`)
+        setError(`Authentication failed: ${getHumanReadableError(userError.message)}`)
         setLoading(false)
         return
       }
 
       if (!user) {
-        setDebugInfo("No user found, redirecting to sign-in...")
         router.push("/sign-in")
         return
       }
 
       setUser(user)
-      setDebugInfo(`User found: ${user.email}`)
-
-      // Fetch projects after user is confirmed
       await fetchProjects(user.id)
     } catch (error: any) {
       console.error("Error checking user:", error)
-      setError(`Error checking user: ${error.message}`)
+      setError(`Error checking user: ${getHumanReadableError(error.message)}`)
       setLoading(false)
     }
   }
 
   const fetchProjects = async (userId: string) => {
     try {
-      setDebugInfo("Fetching projects...")
-
       const { data, error } = await supabase
         .from("projects")
         .select("*")
@@ -112,25 +103,22 @@ export default function Dashboard() {
 
       if (error) {
         console.error("Projects fetch error:", error)
-        setError(`Failed to summon your projects: ${getHumanReadableError(error.message)}`)
+        setError(`Failed to fetch projects: ${getHumanReadableError(error.message)}`)
         setLoading(false)
         return
       }
 
       setProjects(data || [])
-      setDebugInfo(`Found ${data?.length || 0} projects`)
 
       if (data && data.length > 0) {
         setSelectedProject(data[0].id)
         await fetchTasks(data[0].id)
       } else {
-        // No projects found, create a default one
-        setDebugInfo("No projects found, creating default project...")
         await createDefaultProject(userId)
       }
     } catch (error: any) {
       console.error("Error fetching projects:", error)
-      setError(`Error fetching projects: ${error.message}`)
+      setError(`Error fetching projects: ${getHumanReadableError(error.message)}`)
       setLoading(false)
     }
   }
@@ -150,7 +138,7 @@ export default function Dashboard() {
 
       if (projectError) {
         console.error("Error creating default project:", projectError)
-        setError(`Error creating default project: ${projectError.message}`)
+        setError(`Error creating default project: ${getHumanReadableError(projectError.message)}`)
         setLoading(false)
         return
       }
@@ -158,20 +146,17 @@ export default function Dashboard() {
       if (projectData) {
         setProjects([projectData])
         setSelectedProject(projectData.id)
-        setDebugInfo("Default project created successfully")
         await fetchTasks(projectData.id)
       }
     } catch (error: any) {
       console.error("Error creating default project:", error)
-      setError(`Error creating default project: ${error.message}`)
+      setError(`Error creating default project: ${getHumanReadableError(error.message)}`)
       setLoading(false)
     }
   }
 
   const fetchTasks = async (projectId: string) => {
     try {
-      setDebugInfo("Fetching tasks...")
-
       const { data, error } = await supabase
         .from("tasks")
         .select(`
@@ -186,13 +171,12 @@ export default function Dashboard() {
 
       if (error) {
         console.error("Tasks fetch error:", error)
-        setError(`Error fetching tasks: ${error.message}`)
+        setError(`Error fetching tasks: ${getHumanReadableError(error.message)}`)
         setLoading(false)
         return
       }
 
       setTasks(data || [])
-      setDebugInfo(`Found ${data?.length || 0} tasks`)
 
       // Fetch checklist items for all tasks
       if (data && data.length > 0) {
@@ -200,21 +184,26 @@ export default function Dashboard() {
       }
 
       setLoading(false)
-      setDebugInfo("Dashboard loaded successfully!")
+      setError("") // Clear any previous errors
     } catch (error: any) {
       console.error("Error fetching tasks:", error)
-      setError(`Error fetching tasks: ${error.message}`)
+      setError(`Error fetching tasks: ${getHumanReadableError(error.message)}`)
       setLoading(false)
     }
   }
 
   const fetchChecklistItems = async (taskIds: string[]) => {
     try {
-      const { data: checklistData } = await supabase
+      const { data: checklistData, error } = await supabase
         .from("checklist_items")
         .select("*")
         .in("task_id", taskIds)
         .order("created_at", { ascending: true })
+
+      if (error) {
+        console.error("Error fetching checklist items:", error)
+        return // Don't fail the whole dashboard for checklist items
+      }
 
       if (checklistData) {
         const groupedChecklist = checklistData.reduce(
@@ -253,10 +242,9 @@ export default function Dashboard() {
       )
       .trim()
 
-    // Detect priority using exclamation shortcuts FIRST (higher priority than text detection)
+    // Detect priority using exclamation shortcuts FIRST
     let priority = "medium"
 
-    // Check for exclamation mark shortcuts (! = low, !! = medium, !!! = high)
     const exclamationMatch = input.match(/!{1,3}(?!\w)/g)
     if (exclamationMatch) {
       const maxExclamations = Math.max(...exclamationMatch.map((match) => match.length))
@@ -274,9 +262,7 @@ export default function Dashboard() {
         text.includes("asap") ||
         text.includes("high priority") ||
         text.includes("important") ||
-        text.includes("critical") ||
-        text.includes("🔥") ||
-        text.includes("emergency")
+        text.includes("critical")
       ) {
         priority = "high"
       } else if (
@@ -298,7 +284,7 @@ export default function Dashboard() {
       text.includes("priority") ||
       text.includes("⭐") ||
       text.includes("star") ||
-      priority === "high" // Auto-mark high priority items as important
+      priority === "high"
 
     // Extract due date patterns
     let dueDate = null
@@ -330,7 +316,6 @@ export default function Dashboard() {
           nextWeek.setDate(nextWeek.getDate() + (14 - nextWeek.getDay()))
           dueDate = nextWeek.toISOString().split("T")[0] + "T23:59"
         } else {
-          // Try to parse the date
           try {
             const parsed = new Date(dateStr)
             if (!isNaN(parsed.getTime())) {
@@ -348,7 +333,6 @@ export default function Dashboard() {
     let title = cleanText
     let description = null
 
-    // Look for description indicators
     const descriptionIndicators = [" - ", " : ", " because ", " to ", " for ", " about "]
     for (const indicator of descriptionIndicators) {
       if (cleanText.includes(indicator)) {
@@ -359,12 +343,12 @@ export default function Dashboard() {
       }
     }
 
-    // Clean up title (remove priority/date keywords and exclamation shortcuts)
+    // Clean up title
     title = title
       .replace(/\b(urgent|asap|high priority|low priority|important|critical|must do|priority)\b/gi, "")
       .replace(/\b(due|by|before|until)\s+[\w/-]+/gi, "")
       .replace(/\b(today|tomorrow|this week|next week)\b/gi, "")
-      .replace(/!{1,3}(?!\w)/g, "") // Remove exclamation shortcuts
+      .replace(/!{1,3}(?!\w)/g, "")
       .replace(/\s+/g, " ")
       .trim()
 
@@ -383,6 +367,8 @@ export default function Dashboard() {
     if (!naturalInput.trim() || !selectedProject) return
 
     setIsProcessing(true)
+    setError("")
+
     try {
       const parsed = parseNaturalLanguage(naturalInput)
 
@@ -392,7 +378,7 @@ export default function Dashboard() {
         emoji: parsed.emoji,
         user_id: user.id,
         project_id: selectedProject,
-        status: "todo" as TaskStatus, // Ensure we use the correct type
+        status: "todo" as TaskStatus,
         priority: parsed.priority,
         is_important: parsed.isImportant,
         due_date: parsed.dueDate,
@@ -409,7 +395,10 @@ export default function Dashboard() {
         )
       `)
 
-      if (error) throw error
+      if (error) {
+        console.error("Task creation error:", error)
+        throw error
+      }
 
       if (data) {
         setTasks([data[0], ...tasks])
@@ -417,7 +406,8 @@ export default function Dashboard() {
         setParsedPreview(null)
       }
     } catch (error: any) {
-      setError(`Failed to forge your task in the darkness: ${getHumanReadableError(error.message)}`)
+      console.error("Error creating task:", error)
+      setError(`Failed to create task: ${getHumanReadableError(error.message)}`)
     } finally {
       setIsProcessing(false)
     }
@@ -438,11 +428,8 @@ export default function Dashboard() {
       if (newStatus === "done") {
         updateData.completed_at = new Date().toISOString()
       } else {
-        // If changing from done to another status, clear completed_at
         updateData.completed_at = null
       }
-
-      console.log("Updating task:", taskId, "with data:", updateData)
 
       const { data, error } = await supabase.from("tasks").update(updateData).eq("id", taskId).select()
 
@@ -451,9 +438,7 @@ export default function Dashboard() {
         throw error
       }
 
-      console.log("Database update successful:", data)
-
-      // Update local state with the returned data
+      // Update local state
       if (data && data.length > 0) {
         const updatedTask = data[0]
         setTasks((prevTasks) =>
@@ -461,24 +446,12 @@ export default function Dashboard() {
             task.id === taskId ? { ...task, status: updatedTask.status, completed_at: updatedTask.completed_at } : task,
           ),
         )
-      } else {
-        // Fallback: update local state manually if no data returned
-        setTasks((prevTasks) =>
-          prevTasks.map((task) =>
-            task.id === taskId
-              ? { ...task, status: newStatus as Task["status"], completed_at: updateData.completed_at }
-              : task,
-          ),
-        )
       }
 
-      console.log("Local state updated successfully")
-
-      // Clear any previous errors
-      setError("")
+      setError("") // Clear any previous errors
     } catch (error: any) {
       console.error("Error updating task status:", error)
-      setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
+      setError(`Failed to update task: ${getHumanReadableError(error.message)}`)
     }
   }
 
@@ -486,7 +459,10 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("checklist_items").update({ is_completed: isCompleted }).eq("id", itemId)
 
-      if (error) throw error
+      if (error) {
+        console.error("Error updating checklist item:", error)
+        throw error
+      }
 
       // Update local state
       setChecklistItems((prev) => {
@@ -499,13 +475,19 @@ export default function Dashboard() {
         return updated
       })
     } catch (error: any) {
-      setError(error.message)
+      console.error("Error updating checklist item:", error)
+      setError(`Failed to update checklist item: ${getHumanReadableError(error.message)}`)
     }
   }
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push("/sign-in")
+    try {
+      await supabase.auth.signOut()
+      router.push("/sign-in")
+    } catch (error: any) {
+      console.error("Error signing out:", error)
+      setError(`Error signing out: ${getHumanReadableError(error.message)}`)
+    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -556,7 +538,6 @@ export default function Dashboard() {
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
           </div>
-          {debugInfo && <div className="text-gray-500 text-sm max-w-md">{debugInfo}</div>}
           {error && (
             <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
               <AlertDescription className="text-red-400">{error}</AlertDescription>
@@ -597,7 +578,7 @@ export default function Dashboard() {
           </Alert>
         )}
 
-        {/* Smart Task Creation - Now at the top */}
+        {/* Smart Task Creation */}
         <div className="mb-8">
           <Card className="bg-black/60 border-red-900/30 glow-effect">
             <CardHeader className="pb-4">
