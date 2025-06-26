@@ -15,6 +15,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
 
+// Define valid status values to match database
+const VALID_STATUSES = ["todo", "in_progress", "done"] as const
+type TaskStatus = (typeof VALID_STATUSES)[number]
+
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,6 +44,8 @@ export default function Dashboard() {
       return "What you seek has vanished into the void."
     } else if (errorMessage.includes("timeout")) {
       return "The darkness is taking too long to respond. Try again."
+    } else if (errorMessage.includes("enum") || errorMessage.includes("invalid input value")) {
+      return "The task status is cursed. Please try refreshing the page."
     } else {
       return `Something wicked happened: ${errorMessage}`
     }
@@ -385,7 +391,7 @@ export default function Dashboard() {
         emoji: parsed.emoji,
         user_id: user.id,
         project_id: selectedProject,
-        status: "todo",
+        status: "todo" as TaskStatus, // Ensure we use the correct type
         priority: parsed.priority,
         is_important: parsed.isImportant,
         due_date: parsed.dueDate,
@@ -416,12 +422,19 @@ export default function Dashboard() {
     }
   }
 
-  const updateTaskStatus = async (taskId: string, status: string) => {
+  const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
-      const updateData: any = { status }
+      // Validate the status value
+      if (!VALID_STATUSES.includes(newStatus as TaskStatus)) {
+        console.error("Invalid status:", newStatus)
+        setError(`Invalid task status: ${newStatus}`)
+        return
+      }
+
+      const updateData: any = { status: newStatus }
 
       // If marking as done, set completed_at
-      if (status === "done") {
+      if (newStatus === "done") {
         updateData.completed_at = new Date().toISOString()
       } else {
         // If changing from done to another status, clear completed_at
@@ -452,13 +465,16 @@ export default function Dashboard() {
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === taskId
-              ? { ...task, status: status as Task["status"], completed_at: updateData.completed_at }
+              ? { ...task, status: newStatus as Task["status"], completed_at: updateData.completed_at }
               : task,
           ),
         )
       }
 
       console.log("Local state updated successfully")
+
+      // Clear any previous errors
+      setError("")
     } catch (error: any) {
       console.error("Error updating task status:", error)
       setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
