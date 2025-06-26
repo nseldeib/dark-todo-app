@@ -1,6 +1,17 @@
--- Enable Row Level Security
--- Note: auth.users is managed by Supabase Auth, we don't need to modify it
+-- Complete database reset if needed
+-- WARNING: This will delete all existing data!
+-- Only use this if other approaches don't work
 
+-- Drop all tables and recreate them properly
+DROP TABLE IF EXISTS public.checklist_items CASCADE;
+DROP TABLE IF EXISTS public.tasks CASCADE;
+DROP TABLE IF EXISTS public.projects CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+
+-- Drop the enum type if it exists
+DROP TYPE IF EXISTS task_status CASCADE;
+
+-- Recreate everything from scratch
 -- Create users table for additional user data
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
@@ -23,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.projects (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- Create tasks table with all required fields
+-- Create tasks table with TEXT status and CHECK constraint (no enum)
 CREATE TABLE IF NOT EXISTS public.tasks (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
