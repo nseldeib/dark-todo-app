@@ -504,13 +504,22 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="text-center">
-          <Skull className="h-12 w-12 text-red-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-lg mb-2">Loading your dark realm...</div>
-          {debugInfo && <div className="text-gray-400 text-sm">{debugInfo}</div>}
+          <div className="relative">
+            <Skull className="h-16 w-16 text-red-500 mx-auto mb-6 animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Summoning Your Dark Empire...</h2>
+          <p className="text-gray-400 mb-4">Awakening the shadows of productivity</p>
+          <div className="flex justify-center space-x-1 mb-4">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+          </div>
+          {debugInfo && <div className="text-gray-500 text-sm max-w-md">{debugInfo}</div>}
           {error && (
-            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md">
+            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
               <AlertDescription className="text-red-400">{error}</AlertDescription>
             </Alert>
           )}
