@@ -423,22 +423,44 @@ export default function Dashboard() {
       // If marking as done, set completed_at
       if (status === "done") {
         updateData.completed_at = new Date().toISOString()
-      } else if (status !== "done") {
+      } else {
+        // If changing from done to another status, clear completed_at
         updateData.completed_at = null
       }
 
-      const { error } = await supabase.from("tasks").update(updateData).eq("id", taskId)
+      console.log("Updating task:", taskId, "with data:", updateData)
 
-      if (error) throw error
+      const { data, error } = await supabase.from("tasks").update(updateData).eq("id", taskId).select()
 
-      setTasks(
-        tasks.map((task) =>
-          task.id === taskId
-            ? { ...task, status: status as Task["status"], completed_at: updateData.completed_at }
-            : task,
-        ),
-      )
+      if (error) {
+        console.error("Database update error:", error)
+        throw error
+      }
+
+      console.log("Database update successful:", data)
+
+      // Update local state with the returned data
+      if (data && data.length > 0) {
+        const updatedTask = data[0]
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === taskId ? { ...task, status: updatedTask.status, completed_at: updatedTask.completed_at } : task,
+          ),
+        )
+      } else {
+        // Fallback: update local state manually if no data returned
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === taskId
+              ? { ...task, status: status as Task["status"], completed_at: updateData.completed_at }
+              : task,
+          ),
+        )
+      }
+
+      console.log("Local state updated successfully")
     } catch (error: any) {
+      console.error("Error updating task status:", error)
       setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
     }
   }
