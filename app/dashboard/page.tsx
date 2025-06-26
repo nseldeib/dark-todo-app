@@ -13,7 +13,21 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
+import {
+  Skull,
+  LogOut,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Star,
+  Calendar,
+  Zap,
+  Brain,
+  Menu,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react"
 
 // Define valid status values to match database
 const VALID_STATUSES = ["todo", "in_progress", "done"] as const
@@ -31,6 +45,8 @@ export default function Dashboard() {
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [showCompleted, setShowCompleted] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showPreviewHelp, setShowPreviewHelp] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -525,22 +541,22 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="text-center">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="text-center max-w-sm w-full">
           <div className="relative">
-            <Skull className="h-16 w-16 text-red-500 mx-auto mb-6 animate-pulse" />
+            <Skull className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-4 sm:mb-6 animate-pulse" />
             <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Summoning Your Dark Empire...</h2>
-          <p className="text-gray-400 mb-4">Awakening the shadows of productivity</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Summoning Your Dark Empire...</h2>
+          <p className="text-gray-400 mb-4 text-sm sm:text-base">Awakening the shadows of productivity</p>
           <div className="flex justify-center space-x-1 mb-4">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
           </div>
           {error && (
-            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
-              <AlertDescription className="text-red-400">{error}</AlertDescription>
+            <Alert className="mt-4 border-red-900/50 bg-red-950/20 text-left">
+              <AlertDescription className="text-red-400 text-sm">{error}</AlertDescription>
             </Alert>
           )}
         </div>
@@ -550,70 +566,155 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950">
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Skull className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-400">Welcome, {user?.email}</span>
+      {/* Mobile-Optimized Header */}
+      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 sm:py-4">
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between lg:hidden">
+            <div className="flex items-center space-x-2">
+              <Skull className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
+              <h1 className="text-lg sm:text-xl font-bold text-white">DarkTodo</h1>
+            </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="text-gray-300 hover:bg-gray-800 p-2"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
+
+          {/* Desktop Header */}
+          <div className="hidden lg:flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Skull className="h-8 w-8 text-red-500" />
+              <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-400 hidden xl:inline">Welcome, {user?.email}</span>
+              <span className="text-gray-400 xl:hidden">Welcome, {user?.email?.split("@")[0]}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="lg:hidden mt-4 pt-4 border-t border-gray-800">
+              <div className="space-y-3">
+                <div className="text-gray-400 text-sm">Welcome, {user?.email}</div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 w-full justify-start"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-6 lg:py-8 max-w-6xl">
         {error && (
-          <Alert className="mb-6 border-red-900/50 bg-red-950/20">
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
+          <Alert className="mb-4 sm:mb-6 border-red-900/50 bg-red-950/20">
+            <AlertDescription className="text-red-400 text-sm sm:text-base">{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Smart Task Creation */}
-        <div className="mb-8">
+        {/* Mobile-Optimized Smart Task Creation */}
+        <div className="mb-6 sm:mb-8">
           <Card className="bg-black/60 border-red-900/30 glow-effect">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-white flex items-center">
-                <Brain className="h-5 w-5 mr-2 text-red-500" />
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="text-white flex items-center text-lg sm:text-xl">
+                <Brain className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-red-500" />
                 Smart Task Creation
-                <Zap className="h-4 w-4 ml-2 text-yellow-400" />
+                <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-2 text-yellow-400" />
               </CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardDescription className="text-gray-400 text-sm sm:text-base">
                 Just type naturally - I'll understand the context and extract all the details
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <form onSubmit={createTaskFromNaturalInput} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="natural-input" className="text-gray-300">
+                <div className="space-y-3">
+                  <Label htmlFor="natural-input" className="text-gray-300 text-sm sm:text-base">
                     What needs to be done?
                   </Label>
                   <Textarea
                     id="natural-input"
                     value={naturalInput}
                     onChange={(e) => setNaturalInput(e.target.value)}
-                    className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
+                    className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[80px] sm:min-h-[100px] text-base sm:text-lg resize-none"
                     placeholder="🔥 Fix the login bug!!! due tomorrow - users can't sign in with Google authentication"
-                    rows={4}
+                    rows={3}
                   />
 
-                  {/* Real-time parsing preview */}
+                  {/* Real-time parsing preview - Mobile Optimized */}
                   {parsedPreview && (
-                    <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <Brain className="h-4 w-4 text-green-400 mr-2" />
-                        <span className="text-green-400 text-sm font-medium">AI Parsed Preview:</span>
+                    <div className="mt-3 p-3 sm:p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <Brain className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-green-400 text-sm font-medium">AI Parsed Preview:</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowPreviewHelp(!showPreviewHelp)}
+                          className="text-gray-400 hover:text-white p-1 sm:hidden"
+                        >
+                          {showPreviewHelp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+
+                      {/* Mobile: Stacked Layout */}
+                      <div className="space-y-3 sm:hidden">
+                        <div>
+                          <span className="text-gray-400 text-xs">Title:</span>
+                          <div className="text-white flex items-center text-sm mt-1">
+                            {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
+                            {parsedPreview.title}
+                            {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 text-xs">Priority:</span>
+                          <Badge className={`ml-2 text-xs ${getPriorityColor(parsedPreview.priority)}`}>
+                            {parsedPreview.priority}
+                          </Badge>
+                        </div>
+                        {parsedPreview.description && (
+                          <div>
+                            <span className="text-gray-400 text-xs">Description:</span>
+                            <div className="text-gray-300 text-sm mt-1">{parsedPreview.description}</div>
+                          </div>
+                        )}
+                        {parsedPreview.dueDate && (
+                          <div>
+                            <span className="text-gray-400 text-xs">Due Date:</span>
+                            <div className="text-gray-300 flex items-center text-sm mt-1">
+                              <Calendar className="h-3 w-3 mr-1 text-red-400" />
+                              {new Date(parsedPreview.dueDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Desktop: Grid Layout */}
+                      <div className="hidden sm:grid sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-gray-400">Title:</span>
                           <div className="text-white flex items-center">
@@ -647,41 +748,43 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <div className="text-xs text-gray-500 space-y-1 mt-3">
+                  {/* Help Section - Collapsible on Mobile */}
+                  <div className={`text-xs text-gray-500 space-y-1 mt-3 ${!showPreviewHelp && "hidden sm:block"}`}>
                     <p className="flex items-center">
                       <Brain className="h-3 w-3 mr-1 text-green-400" />
                       <strong>Smart Detection Examples:</strong>
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 ml-4 text-xs">
                       <p>
-                        • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 automatically detected
+                        • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 auto-detected
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Priority:</span> ! (low) !! (medium) !!! (high)
+                        • <span className="text-yellow-400">Priority:</span> ! (low) !! (med) !!! (high)
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday", "12/25/2024"
+                        • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday"
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Details:</span> Use " - " to separate title from description
+                        • <span className="text-yellow-400">Details:</span> Use " - " to separate
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Keywords:</span> "urgent", "important", "low priority"
+                        • <span className="text-yellow-400">Keywords:</span> "urgent", "important"
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Quick example:</span> "🔥 Fix bug!!! due tomorrow"
+                        • <span className="text-yellow-400">Example:</span> "🔥 Fix bug!!! due tomorrow"
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                {/* Mobile-Optimized Form Controls */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                   <div className="flex items-center space-x-2">
-                    <Label htmlFor="project-select" className="text-gray-300 text-sm">
+                    <Label htmlFor="project-select" className="text-gray-300 text-sm whitespace-nowrap">
                       Project:
                     </Label>
                     <Select value={selectedProject} onValueChange={setSelectedProject}>
-                      <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700 text-white">
+                      <SelectTrigger className="w-full sm:w-48 bg-gray-900/50 border-gray-700 text-white text-sm">
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700">
@@ -695,7 +798,7 @@ export default function Dashboard() {
                   </div>
                   <Button
                     type="submit"
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center"
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-2 sm:py-3 flex items-center justify-center w-full sm:w-auto text-sm sm:text-base"
                     disabled={isProcessing || !selectedProject || !naturalInput.trim()}
                   >
                     {isProcessing ? (
@@ -716,21 +819,23 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Tasks List */}
-        <div className="space-y-8">
+        {/* Tasks List - Mobile Optimized */}
+        <div className="space-y-6 sm:space-y-8">
           {/* Active Tasks Section */}
           <div>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Active Tasks</h2>
-              <p className="text-gray-400">Tasks that need your attention</p>
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Active Tasks</h2>
+              <p className="text-gray-400 text-sm sm:text-base">Tasks that need your attention</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {tasks.filter((task) => task.status !== "done").length === 0 ? (
                 <Card className="bg-black/40 border-gray-800">
-                  <CardContent className="py-8 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                    <p className="text-gray-400">All tasks completed! Time to rest in the shadows.</p>
+                  <CardContent className="py-6 sm:py-8 text-center">
+                    <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-gray-400 text-sm sm:text-base">
+                      All tasks completed! Time to rest in the shadows.
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
@@ -738,52 +843,66 @@ export default function Dashboard() {
                   .filter((task) => task.status !== "done")
                   .map((task) => (
                     <Card key={task.id} className="task-card">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                              <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                              {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
+                      <CardContent className="p-4 sm:p-6">
+                        {/* Mobile Layout */}
+                        <div className="sm:hidden space-y-3">
+                          {/* Title and Important Star */}
+                          <div className="flex items-start space-x-2">
+                            {task.emoji && <span className="text-lg flex-shrink-0">{task.emoji}</span>}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-semibold text-white leading-tight break-words">
+                                {task.title}
+                              </h3>
+                              {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current mt-1" />}
                             </div>
-                            {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
-                            {/* Checklist Items */}
-                            {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                              <div className="mb-3 space-y-2">
-                                {checklistItems[task.id].map((item) => (
-                                  <div key={item.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                      checked={item.is_completed}
-                                      onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                      className="border-gray-600"
-                                    />
-                                    <span
-                                      className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                    >
-                                      {item.text}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            <div className="flex items-center space-x-2 mb-2">
-                              {getStatusIcon(task.status)}
-                              <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                              <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                            </div>
-
-                            {task.due_date && (
-                              <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                                <Calendar className="h-3 w-3 text-red-400" />
-                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                              </div>
-                            )}
                           </div>
-                          <div className="ml-4">
+
+                          {/* Description */}
+                          {task.description && (
+                            <p className="text-gray-400 text-sm leading-relaxed">{task.description}</p>
+                          )}
+
+                          {/* Checklist Items */}
+                          {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                            <div className="space-y-2">
+                              {checklistItems[task.id].map((item) => (
+                                <div key={item.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={item.is_completed}
+                                    onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                    className="border-gray-600 flex-shrink-0"
+                                  />
+                                  <span
+                                    className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"} break-words`}
+                                  >
+                                    {item.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Status and Priority Badges */}
+                          <div className="flex items-center space-x-2 flex-wrap gap-1">
+                            {getStatusIcon(task.status)}
+                            <Badge className={`${getStatusColor(task.status)} text-xs`}>
+                              {task.status.replace("_", " ")}
+                            </Badge>
+                            <Badge className={`${getPriorityColor(task.priority)} text-xs`}>{task.priority}</Badge>
+                          </div>
+
+                          {/* Due Date */}
+                          {task.due_date && (
+                            <div className="flex items-center space-x-1 text-xs text-gray-400">
+                              <Calendar className="h-3 w-3 text-red-400 flex-shrink-0" />
+                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+
+                          {/* Status Selector */}
+                          <div className="pt-2">
                             <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                              <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                              <SelectTrigger className="w-full bg-gray-900/50 border-gray-700 text-white text-sm">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-gray-900 border-gray-700">
@@ -799,64 +918,23 @@ export default function Dashboard() {
                               </SelectContent>
                             </Select>
                           </div>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Created: {new Date(task.created_at).toLocaleDateString()}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-              )}
-            </div>
-          </div>
 
-          {/* Completed Tasks Section */}
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Completed Tasks</h2>
-                <p className="text-gray-400">
-                  {tasks.filter((task) => task.status === "done").length} tasks conquered by the darkness
-                </p>
-              </div>
-              {tasks.filter((task) => task.status === "done").length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                >
-                  {showCompleted ? "Hide" : "Show"} Completed
-                </Button>
-              )}
-            </div>
+                          {/* Created Date */}
+                          <div className="text-xs text-gray-500 pt-1">
+                            Created: {new Date(task.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
 
-            {showCompleted && (
-              <div className="space-y-4">
-                {tasks.filter((task) => task.status === "done").length === 0 ? (
-                  <Card className="bg-black/40 border-gray-800">
-                    <CardContent className="py-8 text-center">
-                      <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                      <p className="text-gray-400">No completed tasks yet. Get to work!</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  tasks
-                    .filter((task) => task.status === "done")
-                    .map((task) => (
-                      <Card key={task.id} className="task-card opacity-75 bg-green-950/10 border-green-900/30">
-                        <CardContent className="p-6">
+                        {/* Desktop Layout */}
+                        <div className="hidden sm:block">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-2">
-                                {task.emoji && <span className="text-lg opacity-60">{task.emoji}</span>}
-                                <h3 className="text-lg font-semibold text-white line-through opacity-75">
-                                  {task.title}
-                                </h3>
-                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />}
-                                <CheckCircle className="h-4 w-4 text-green-400" />
+                                {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                                <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                               </div>
-                              {task.description && <p className="text-gray-400 mb-3 opacity-75">{task.description}</p>}
+                              {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
 
                               {/* Checklist Items */}
                               {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
@@ -879,14 +957,13 @@ export default function Dashboard() {
                               )}
 
                               <div className="flex items-center space-x-2 mb-2">
-                                <Badge className="bg-green-900/20 text-green-400 border-green-900/50">completed</Badge>
-                                <Badge className={`${getPriorityColor(task.priority)} opacity-60`}>
-                                  {task.priority}
-                                </Badge>
+                                {getStatusIcon(task.status)}
+                                <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                                <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
                               </div>
 
                               {task.due_date && (
-                                <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-60">
+                                <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
                                   <Calendar className="h-3 w-3 text-red-400" />
                                   <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                                 </div>
@@ -911,13 +988,220 @@ export default function Dashboard() {
                               </Select>
                             </div>
                           </div>
-                          <div className="text-xs text-gray-500 opacity-75">
+                          <div className="text-xs text-gray-500">
                             Created: {new Date(task.created_at).toLocaleDateString()}
-                            {task.completed_at && (
-                              <span className="ml-4 text-green-400">
-                                ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
-                              </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+              )}
+            </div>
+          </div>
+
+          {/* Completed Tasks Section - Mobile Optimized */}
+          <div>
+            <div className="mb-4 sm:mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Completed Tasks</h2>
+                <p className="text-gray-400 text-sm sm:text-base">
+                  {tasks.filter((task) => task.status === "done").length} tasks conquered by the darkness
+                </p>
+              </div>
+              {tasks.filter((task) => task.status === "done").length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs sm:text-sm px-2 sm:px-3"
+                >
+                  {showCompleted ? "Hide" : "Show"} Completed
+                </Button>
+              )}
+            </div>
+
+            {showCompleted && (
+              <div className="space-y-3 sm:space-y-4">
+                {tasks.filter((task) => task.status === "done").length === 0 ? (
+                  <Card className="bg-black/40 border-gray-800">
+                    <CardContent className="py-6 sm:py-8 text-center">
+                      <Skull className="h-10 w-10 sm:h-12 sm:w-12 text-gray-600 mx-auto mb-3 sm:mb-4" />
+                      <p className="text-gray-400 text-sm sm:text-base">No completed tasks yet. Get to work!</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  tasks
+                    .filter((task) => task.status === "done")
+                    .map((task) => (
+                      <Card key={task.id} className="task-card opacity-75 bg-green-950/10 border-green-900/30">
+                        <CardContent className="p-4 sm:p-6">
+                          {/* Mobile Layout for Completed Tasks */}
+                          <div className="sm:hidden space-y-3">
+                            <div className="flex items-start space-x-2">
+                              {task.emoji && <span className="text-lg opacity-60 flex-shrink-0">{task.emoji}</span>}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-base font-semibold text-white line-through opacity-75 leading-tight break-words">
+                                  {task.title}
+                                </h3>
+                                <div className="flex items-center space-x-1 mt-1">
+                                  {task.is_important && (
+                                    <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />
+                                  )}
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {task.description && (
+                              <p className="text-gray-400 opacity-75 text-sm leading-relaxed">{task.description}</p>
                             )}
+
+                            {/* Checklist Items */}
+                            {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                              <div className="space-y-2">
+                                {checklistItems[task.id].map((item) => (
+                                  <div key={item.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      checked={item.is_completed}
+                                      onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                      className="border-gray-600 flex-shrink-0"
+                                    />
+                                    <span
+                                      className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"} break-words`}
+                                    >
+                                      {item.text}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex items-center space-x-2 flex-wrap gap-1">
+                              <Badge className="bg-green-900/20 text-green-400 border-green-900/50 text-xs">
+                                completed
+                              </Badge>
+                              <Badge className={`${getPriorityColor(task.priority)} opacity-60 text-xs`}>
+                                {task.priority}
+                              </Badge>
+                            </div>
+
+                            {task.due_date && (
+                              <div className="flex items-center space-x-1 text-xs text-gray-400 opacity-60">
+                                <Calendar className="h-3 w-3 text-red-400 flex-shrink-0" />
+                                <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                              </div>
+                            )}
+
+                            <div className="pt-2">
+                              <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                                <SelectTrigger className="w-full bg-gray-900/50 border-gray-700 text-white text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-gray-700">
+                                  <SelectItem value="todo" className="text-white">
+                                    To Do
+                                  </SelectItem>
+                                  <SelectItem value="in_progress" className="text-white">
+                                    In Progress
+                                  </SelectItem>
+                                  <SelectItem value="done" className="text-white">
+                                    Done
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="text-xs text-gray-500 opacity-75 pt-1">
+                              Created: {new Date(task.created_at).toLocaleDateString()}
+                              {task.completed_at && (
+                                <span className="block text-green-400 mt-1">
+                                  ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Desktop Layout for Completed Tasks */}
+                          <div className="hidden sm:block">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  {task.emoji && <span className="text-lg opacity-60">{task.emoji}</span>}
+                                  <h3 className="text-lg font-semibold text-white line-through opacity-75">
+                                    {task.title}
+                                  </h3>
+                                  {task.is_important && (
+                                    <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />
+                                  )}
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                </div>
+                                {task.description && (
+                                  <p className="text-gray-400 mb-3 opacity-75">{task.description}</p>
+                                )}
+
+                                {/* Checklist Items */}
+                                {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                                  <div className="mb-3 space-y-2">
+                                    {checklistItems[task.id].map((item) => (
+                                      <div key={item.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                          checked={item.is_completed}
+                                          onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                          className="border-gray-600"
+                                        />
+                                        <span
+                                          className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                        >
+                                          {item.text}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Badge className="bg-green-900/20 text-green-400 border-green-900/50">
+                                    completed
+                                  </Badge>
+                                  <Badge className={`${getPriorityColor(task.priority)} opacity-60`}>
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+
+                                {task.due_date && (
+                                  <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-60">
+                                    <Calendar className="h-3 w-3 text-red-400" />
+                                    <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="ml-4">
+                                <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                                  <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-gray-900 border-gray-700">
+                                    <SelectItem value="todo" className="text-white">
+                                      To Do
+                                    </SelectItem>
+                                    <SelectItem value="in_progress" className="text-white">
+                                      In Progress
+                                    </SelectItem>
+                                    <SelectItem value="done" className="text-white">
+                                      Done
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500 opacity-75">
+                              Created: {new Date(task.created_at).toLocaleDateString()}
+                              {task.completed_at && (
+                                <span className="ml-4 text-green-400">
+                                  ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
