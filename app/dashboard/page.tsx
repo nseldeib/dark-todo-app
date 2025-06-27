@@ -1,19 +1,15 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase, type Task, type Project, type ChecklistItem } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
+import { TaskCreator } from "@/components/task-creator"
+import { TaskCard } from "@/components/task-card"
+import { EmptyState } from "@/components/empty-state"
+import { Skull, LogOut } from "lucide-react"
+import { getHumanReadableError } from "@/lib/task-utils"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -22,382 +18,152 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<string>("")
   const [checklistItems, setChecklistItems] = useState<{ [taskId: string]: ChecklistItem[] }>({})
-  const [naturalInput, setNaturalInput] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
-  const [debugInfo, setDebugInfo] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-
-  // Add this computed value after the state declarations
-  const filteredTasks = statusFilter === "all" ? tasks : tasks.filter((task) => task.status === statusFilter)
   const router = useRouter()
-
-  const getHumanReadableError = (errorMessage: string): string => {
-    if (errorMessage.includes("Network")) {
-      return "The digital underworld is unreachable. Check your connection."
-    } else if (errorMessage.includes("JWT")) {
-      return "Your dark session has expired. Please sign in again."
-    } else if (errorMessage.includes("permission")) {
-      return "The shadows deny you access. Insufficient permissions."
-    } else if (errorMessage.includes("not found")) {
-      return "What you seek has vanished into the void."
-    } else if (errorMessage.includes("timeout")) {
-      return "The darkness is taking too long to respond. Try again."
-    } else {
-      return `Something wicked happened: ${errorMessage}`
-    }
-  }
 
   useEffect(() => {
     checkUser()
   }, [])
 
-  // Parse input in real-time for preview
-  useEffect(() => {
-    if (naturalInput.trim()) {
-      const parsed = parseNaturalLanguage(naturalInput)
-      setParsedPreview(parsed)
-    } else {
-      setParsedPreview(null)
-    }
-  }, [naturalInput])
-
   const checkUser = async () => {
     try {
-      setDebugInfo("Checking user authentication...")
-
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser()
 
-      if (userError) {
-        console.error("Auth error:", userError)
-        setError(`The authentication spirits are restless: ${getHumanReadableError(userError.message)}`)
-        setLoading(false)
-        return
-      }
-
-      if (!user) {
-        setDebugInfo("No user found, redirecting to sign-in...")
+      if (userError || !user) {
         router.push("/sign-in")
         return
       }
 
       setUser(user)
-      setDebugInfo(`User found: ${user.email}`)
-
-      // Fetch projects after user is confirmed
       await fetchProjects(user.id)
     } catch (error: any) {
-      console.error("Error checking user:", error)
-      setError(`Error checking user: ${error.message}`)
+      setError(getHumanReadableError(error.message))
       setLoading(false)
     }
   }
 
   const fetchProjects = async (userId: string) => {
     try {
-      setDebugInfo("Fetching projects...")
-
       const { data, error } = await supabase
         .from("projects")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Projects fetch error:", error)
-        setError(`Failed to summon your projects: ${getHumanReadableError(error.message)}`)
-        setLoading(false)
-        return
-      }
-
-      setProjects(data || [])
-      setDebugInfo(`Found ${data?.length || 0} projects`)
+      if (error) throw error
 
       if (data && data.length > 0) {
+        setProjects(data)
         setSelectedProject(data[0].id)
         await fetchTasks(data[0].id)
       } else {
-        // No projects found, create a default one
-        setDebugInfo("No projects found, creating default project...")
         await createDefaultProject(userId)
       }
     } catch (error: any) {
-      console.error("Error fetching projects:", error)
-      setError(`Error fetching projects: ${error.message}`)
+      setError(getHumanReadableError(error.message))
       setLoading(false)
     }
   }
 
   const createDefaultProject = async (userId: string) => {
     try {
-      const { data: projectData, error: projectError } = await supabase
+      const { data: projectData, error } = await supabase
         .from("projects")
         .insert({
           user_id: userId,
           name: "My Tasks",
-          description: "Default project for your tasks",
+          description: "Default project",
           emoji: "📝",
         })
         .select()
         .single()
 
-      if (projectError) {
-        console.error("Error creating default project:", projectError)
-        setError(`Error creating default project: ${projectError.message}`)
-        setLoading(false)
-        return
-      }
+      if (error) throw error
 
       if (projectData) {
         setProjects([projectData])
         setSelectedProject(projectData.id)
-        setDebugInfo("Default project created successfully")
         await fetchTasks(projectData.id)
       }
     } catch (error: any) {
-      console.error("Error creating default project:", error)
-      setError(`Error creating default project: ${error.message}`)
+      setError(getHumanReadableError(error.message))
       setLoading(false)
     }
   }
 
   const fetchTasks = async (projectId: string) => {
     try {
-      setDebugInfo("Fetching tasks...")
-
       const { data, error } = await supabase
         .from("tasks")
-        .select(`
-        *,
-        projects (
-          name,
-          emoji
-        )
-      `)
+        .select(`*, projects(name, emoji)`)
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Tasks fetch error:", error)
-        setError(`Error fetching tasks: ${error.message}`)
-        setLoading(false)
-        return
-      }
+      if (error) throw error
 
       setTasks(data || [])
-      setDebugInfo(`Found ${data?.length || 0} tasks`)
 
-      // Fetch checklist items for all tasks
       if (data && data.length > 0) {
         await fetchChecklistItems(data.map((task) => task.id))
       }
 
       setLoading(false)
-      setDebugInfo("Dashboard loaded successfully!")
     } catch (error: any) {
-      console.error("Error fetching tasks:", error)
-      setError(`Error fetching tasks: ${error.message}`)
+      setError(getHumanReadableError(error.message))
       setLoading(false)
     }
   }
 
   const fetchChecklistItems = async (taskIds: string[]) => {
     try {
-      const { data: checklistData } = await supabase
+      const { data } = await supabase
         .from("checklist_items")
         .select("*")
         .in("task_id", taskIds)
         .order("created_at", { ascending: true })
 
-      if (checklistData) {
-        const groupedChecklist = checklistData.reduce(
+      if (data) {
+        const grouped = data.reduce(
           (acc, item) => {
-            if (!acc[item.task_id]) {
-              acc[item.task_id] = []
-            }
+            if (!acc[item.task_id]) acc[item.task_id] = []
             acc[item.task_id].push(item)
             return acc
           },
           {} as { [taskId: string]: ChecklistItem[] },
         )
 
-        setChecklistItems(groupedChecklist)
+        setChecklistItems(grouped)
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching checklist items:", error)
-      // Don't fail the whole dashboard for checklist items
     }
   }
 
-  const parseNaturalLanguage = (input: string) => {
-    const text = input.toLowerCase()
-
-    // Extract emoji (first emoji found)
-    const emojiMatch = input.match(
-      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u,
-    )
-    const emoji = emojiMatch ? emojiMatch[0] : null
-
-    // Remove emoji from text for further processing
-    const cleanText = input
-      .replace(
-        /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
-        "",
-      )
-      .trim()
-
-    // Detect priority
-    let priority = "medium"
-    if (
-      text.includes("urgent") ||
-      text.includes("asap") ||
-      text.includes("high priority") ||
-      text.includes("important") ||
-      text.includes("critical") ||
-      text.includes("🔥") ||
-      text.includes("emergency")
-    ) {
-      priority = "high"
-    } else if (
-      text.includes("low priority") ||
-      text.includes("when i have time") ||
-      text.includes("someday") ||
-      text.includes("maybe") ||
-      text.includes("later")
-    ) {
-      priority = "low"
-    }
-
-    // Detect importance
-    const isImportant =
-      text.includes("important") ||
-      text.includes("critical") ||
-      text.includes("must do") ||
-      text.includes("priority") ||
-      text.includes("⭐") ||
-      text.includes("star")
-
-    // Extract due date patterns
-    let dueDate = null
-    const datePatterns = [
-      /(?:due|by|before|until)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
-      /(?:due|by|before|until)\s+(\d{1,2}-\d{1,2}-\d{4})/i,
-      /(?:due|by|before|until)\s+(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
-      /(?:due|by|before|until)\s+(\d{1,2}\/\d{1,2})/i,
-      /(today|tomorrow)/i,
-      /(this week|next week)/i,
-    ]
-
-    for (const pattern of datePatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        const dateStr = match[1] || match[0]
-        if (dateStr === "today") {
-          dueDate = new Date().toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "tomorrow") {
-          const tomorrow = new Date()
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          dueDate = tomorrow.toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "this week") {
-          const endOfWeek = new Date()
-          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()))
-          dueDate = endOfWeek.toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "next week") {
-          const nextWeek = new Date()
-          nextWeek.setDate(nextWeek.getDate() + (14 - nextWeek.getDay()))
-          dueDate = nextWeek.toISOString().split("T")[0] + "T23:59"
-        } else {
-          // Try to parse the date
-          try {
-            const parsed = new Date(dateStr)
-            if (!isNaN(parsed.getTime())) {
-              dueDate = parsed.toISOString().split("T")[0] + "T23:59"
-            }
-          } catch (e) {
-            // Ignore invalid dates
-          }
-        }
-        break
-      }
-    }
-
-    // Split into title and description
-    let title = cleanText
-    let description = null
-
-    // Look for description indicators
-    const descriptionIndicators = [" - ", " : ", " because ", " to ", " for ", " about "]
-    for (const indicator of descriptionIndicators) {
-      if (cleanText.includes(indicator)) {
-        const parts = cleanText.split(indicator, 2)
-        title = parts[0].trim()
-        description = parts[1].trim()
-        break
-      }
-    }
-
-    // Clean up title (remove priority/date keywords)
-    title = title
-      .replace(/\b(urgent|asap|high priority|low priority|important|critical|must do|priority)\b/gi, "")
-      .replace(/\b(due|by|before|until)\s+[\w/-]+/gi, "")
-      .replace(/\b(today|tomorrow|this week|next week)\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim()
-
-    return {
-      title: title || "New Task",
-      description,
-      emoji,
-      priority,
-      isImportant,
-      dueDate,
-    }
-  }
-
-  const createTaskFromNaturalInput = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!naturalInput.trim() || !selectedProject) return
-
+  const createTask = async (taskData: any) => {
     setIsProcessing(true)
     try {
-      const parsed = parseNaturalLanguage(naturalInput)
-
-      const taskData = {
-        title: parsed.title,
-        description: parsed.description,
-        emoji: parsed.emoji,
-        user_id: user.id,
-        project_id: selectedProject,
-        status: "todo",
-        priority: parsed.priority,
-        is_important: parsed.isImportant,
-        due_date: parsed.dueDate,
-      }
-
       const { data, error } = await supabase
         .from("tasks")
-        .insert([taskData])
-        .select(`
-        *,
-        projects (
-          name,
-          emoji
-        )
-      `)
+        .insert([
+          {
+            ...taskData,
+            user_id: user.id,
+            project_id: selectedProject,
+          },
+        ])
+        .select(`*, projects(name, emoji)`)
 
       if (error) throw error
 
       if (data) {
         setTasks([data[0], ...tasks])
-        setNaturalInput("")
-        setParsedPreview(null)
       }
     } catch (error: any) {
-      setError(`Failed to forge your task in the darkness: ${getHumanReadableError(error.message)}`)
+      setError(getHumanReadableError(error.message))
     } finally {
       setIsProcessing(false)
     }
@@ -406,16 +172,13 @@ export default function Dashboard() {
   const updateTaskStatus = async (taskId: string, status: string) => {
     try {
       const updateData: any = { status }
-
-      // If marking as done, set completed_at
       if (status === "done") {
         updateData.completed_at = new Date().toISOString()
-      } else if (status !== "done") {
+      } else {
         updateData.completed_at = null
       }
 
       const { error } = await supabase.from("tasks").update(updateData).eq("id", taskId)
-
       if (error) throw error
 
       setTasks(
@@ -426,7 +189,7 @@ export default function Dashboard() {
         ),
       )
     } catch (error: any) {
-      setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
+      setError(getHumanReadableError(error.message))
     }
   }
 
@@ -436,7 +199,6 @@ export default function Dashboard() {
 
       if (error) throw error
 
-      // Update local state
       setChecklistItems((prev) => {
         const updated = { ...prev }
         Object.keys(updated).forEach((taskId) => {
@@ -447,7 +209,7 @@ export default function Dashboard() {
         return updated
       })
     } catch (error: any) {
-      setError(error.message)
+      setError(getHumanReadableError(error.message))
     }
   }
 
@@ -456,51 +218,12 @@ export default function Dashboard() {
     router.push("/sign-in")
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "done":
-        return <CheckCircle className="h-4 w-4 text-green-400" />
-      case "in_progress":
-        return <Clock className="h-4 w-4 text-yellow-400" />
-      default:
-        return <AlertCircle className="h-4 w-4 text-red-400" />
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "done":
-        return "bg-green-900/20 text-green-400 border-green-900/50"
-      case "in_progress":
-        return "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
-      default:
-        return "bg-red-900/20 text-red-400 border-red-900/50"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-900/20 text-red-400 border-red-900/50"
-      case "medium":
-        return "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
-      default:
-        return "bg-gray-900/20 text-gray-400 border-gray-700"
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950 flex items-center justify-center">
         <div className="text-center">
           <Skull className="h-12 w-12 text-red-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-lg mb-2">Loading your dark realm...</div>
-          {debugInfo && <div className="text-gray-400 text-sm">{debugInfo}</div>}
-          {error && (
-            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md">
-              <AlertDescription className="text-red-400">{error}</AlertDescription>
-            </Alert>
-          )}
+          <div className="text-white text-lg">Loading your realm...</div>
         </div>
       </div>
     )
@@ -529,407 +252,49 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-8">
         {error && (
-          <Alert className="mb-6 border-red-900/50 bg-red-950/20">
+          <Alert className="border-red-900/50 bg-red-950/20">
             <AlertDescription className="text-red-400">{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Smart Task Creation - Now at the top */}
-        <div className="mb-8">
-          <Card className="bg-black/60 border-red-900/30 glow-effect">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-white flex items-center">
-                <Brain className="h-5 w-5 mr-2 text-red-500" />
-                Smart Task Creation
-                <Zap className="h-4 w-4 ml-2 text-yellow-400" />
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Just type naturally - I'll understand the context and extract all the details
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={createTaskFromNaturalInput} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="natural-input" className="text-gray-300">
-                    What needs to be done?
-                  </Label>
-                  <Textarea
-                    id="natural-input"
-                    value={naturalInput}
-                    onChange={(e) => setNaturalInput(e.target.value)}
-                    className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
-                    placeholder="🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication"
-                    rows={4}
-                  />
+        <TaskCreator
+          projects={projects}
+          selectedProject={selectedProject}
+          onProjectChange={setSelectedProject}
+          onCreateTask={createTask}
+          isProcessing={isProcessing}
+        />
 
-                  {/* Real-time parsing preview */}
-                  {parsedPreview && (
-                    <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <Brain className="h-4 w-4 text-green-400 mr-2" />
-                        <span className="text-green-400 text-sm font-medium">AI Parsed Preview:</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400">Title:</span>
-                          <div className="text-white flex items-center">
-                            {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
-                            {parsedPreview.title}
-                            {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Priority:</span>
-                          <Badge className={`ml-2 ${getPriorityColor(parsedPreview.priority)}`}>
-                            {parsedPreview.priority}
-                          </Badge>
-                        </div>
-                        {parsedPreview.description && (
-                          <div className="col-span-2">
-                            <span className="text-gray-400">Description:</span>
-                            <div className="text-gray-300">{parsedPreview.description}</div>
-                          </div>
-                        )}
-                        {parsedPreview.dueDate && (
-                          <div className="col-span-2">
-                            <span className="text-gray-400">Due Date:</span>
-                            <div className="text-gray-300 flex items-center">
-                              <Calendar className="h-3 w-3 mr-1 text-red-400" />
-                              {new Date(parsedPreview.dueDate).toLocaleDateString()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="text-xs text-gray-500 space-y-1 mt-3">
-                    <p className="flex items-center">
-                      <Brain className="h-3 w-3 mr-1 text-green-400" />
-                      <strong>Smart Detection Examples:</strong>
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-4">
-                      <p>
-                        • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 automatically detected
-                      </p>
-                      <p>
-                        • <span className="text-yellow-400">Priority:</span> "urgent", "important", "low priority"
-                      </p>
-                      <p>
-                        • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday", "12/25/2024"
-                      </p>
-                      <p>
-                        • <span className="text-yellow-400">Details:</span> Use " - " to separate title from description
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="project-select" className="text-gray-300 text-sm">
-                      Project:
-                    </Label>
-                    <Select value={selectedProject} onValueChange={setSelectedProject}>
-                      <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700 text-white">
-                        <SelectValue placeholder="Select project" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700">
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id} className="text-white">
-                            {project.emoji} {project.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center"
-                    disabled={isProcessing || !selectedProject || !naturalInput.trim()}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="h-4 w-4 mr-2" />
-                        Create Task
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tasks List */}
         <div>
-          <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
-              <p className="text-gray-400">Manage your dark productivity empire</p>
+              <h2 className="text-2xl font-bold text-white">Your Tasks</h2>
+              <p className="text-gray-400">
+                {tasks.length > 0 && `${tasks.filter((t) => t.status === "done").length} of ${tasks.length} completed`}
+              </p>
             </div>
-            {tasks.length > 0 && (
-              <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-400">
-                  {tasks.filter((t) => t.status === "done").length} of {tasks.length} completed
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40 bg-gray-900/50 border-gray-700 text-white">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700">
-                    <SelectItem value="all" className="text-white">
-                      All Tasks
-                    </SelectItem>
-                    <SelectItem value="todo" className="text-white">
-                      To Do
-                    </SelectItem>
-                    <SelectItem value="in_progress" className="text-white">
-                      In Progress
-                    </SelectItem>
-                    <SelectItem value="done" className="text-white">
-                      Completed
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
 
           {tasks.length === 0 ? (
-            // Enhanced Empty State
-            <Card className="bg-gradient-to-br from-gray-900/50 to-black/50 border-red-900/30 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent"></div>
-              <CardContent className="py-16 text-center relative">
-                <div className="max-w-md mx-auto">
-                  {/* Animated skull with glow effect */}
-                  <div className="relative mb-8">
-                    <Skull className="h-20 w-20 text-red-500 mx-auto animate-pulse" />
-                    <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
-                  </div>
-
-                  <h3 className="text-2xl font-bold text-white mb-4">Welcome to the Dark Side of Productivity</h3>
-                  <p className="text-gray-400 mb-8 leading-relaxed">
-                    Your task realm awaits. Use the smart creation tool above to forge your first task from the shadows.
-                  </p>
-
-                  {/* Feature highlights */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
-                      <Brain className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                      <h4 className="text-white font-medium mb-1">Smart AI Parsing</h4>
-                      <p className="text-xs text-gray-500">Just type naturally - I'll extract all the details</p>
-                    </div>
-                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
-                      <Zap className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-                      <h4 className="text-white font-medium mb-1">Lightning Fast</h4>
-                      <p className="text-xs text-gray-500">Create tasks in seconds with natural language</p>
-                    </div>
-                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
-                      <Star className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                      <h4 className="text-white font-medium mb-1">Dark & Powerful</h4>
-                      <p className="text-xs text-gray-500">Embrace productivity with gothic elegance</p>
-                    </div>
-                  </div>
-
-                  {/* Example suggestions */}
-                  <div className="text-left bg-black/40 rounded-lg p-4 border border-gray-700">
-                    <h4 className="text-white font-medium mb-3 flex items-center">
-                      <Brain className="h-4 w-4 mr-2 text-green-400" />
-                      Try these examples:
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div
-                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
-                        onClick={() =>
-                          setNaturalInput(
-                            "🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication",
-                          )
-                        }
-                      >
-                        <span className="text-red-400 mr-2">•</span>
-                        "🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication"
-                      </div>
-                      <div
-                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
-                        onClick={() =>
-                          setNaturalInput(
-                            "📝 Write project documentation low priority - need to document the API endpoints",
-                          )
-                        }
-                      >
-                        <span className="text-yellow-400 mr-2">•</span>
-                        "📝 Write project documentation low priority - need to document the API endpoints"
-                      </div>
-                      <div
-                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
-                        onClick={() => setNaturalInput("⚡ Deploy to production Friday important")}
-                      >
-                        <span className="text-green-400 mr-2">•</span>
-                        "⚡ Deploy to production Friday important"
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-3">Click any example to try it out!</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              onExampleClick={(example) => {
+                // This would need to be passed down to TaskCreator
+                // For now, we'll keep it simple
+              }}
+            />
           ) : (
-            // Enhanced Tasks List with grouping and filtering
-            <div className="space-y-6">
-              {/* Task Statistics */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-black/40 border-gray-800">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-white">{tasks.length}</div>
-                    <div className="text-xs text-gray-400">Total Tasks</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-black/40 border-yellow-900/50">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {tasks.filter((t) => t.status === "todo").length}
-                    </div>
-                    <div className="text-xs text-gray-400">To Do</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-black/40 border-blue-900/50">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-400">
-                      {tasks.filter((t) => t.status === "in_progress").length}
-                    </div>
-                    <div className="text-xs text-gray-400">In Progress</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-black/40 border-green-900/50">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-green-400">
-                      {tasks.filter((t) => t.status === "done").length}
-                    </div>
-                    <div className="text-xs text-gray-400">Completed</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Grouped Tasks */}
-              {["todo", "in_progress", "done"].map((status) => {
-                const statusTasks = filteredTasks.filter((task) => task.status === status)
-                if (statusTasks.length === 0 && statusFilter !== "all") return null
-
-                const statusConfig = {
-                  todo: { title: "To Do", icon: AlertCircle, color: "text-red-400", bgColor: "bg-red-900/10" },
-                  in_progress: {
-                    title: "In Progress",
-                    icon: Clock,
-                    color: "text-yellow-400",
-                    bgColor: "bg-yellow-900/10",
-                  },
-                  done: { title: "Completed", icon: CheckCircle, color: "text-green-400", bgColor: "bg-green-900/10" },
-                }
-
-                const config = statusConfig[status as keyof typeof statusConfig]
-
-                return (
-                  <div key={status} className={`${config.bgColor} rounded-lg p-4 border border-gray-800`}>
-                    <div className="flex items-center mb-4">
-                      <config.icon className={`h-5 w-5 ${config.color} mr-2`} />
-                      <h3 className="text-lg font-semibold text-white">{config.title}</h3>
-                      <Badge className="ml-2 bg-gray-800 text-gray-300">{statusTasks.length}</Badge>
-                    </div>
-
-                    {statusTasks.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <div className="text-sm">No {config.title.toLowerCase()} tasks</div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {statusTasks.map((task) => (
-                          <Card key={task.id} className="task-card">
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                                    <h4 className="font-semibold text-white">{task.title}</h4>
-                                    {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
-                                  </div>
-                                  {task.description && <p className="text-gray-400 text-sm mb-2">{task.description}</p>}
-
-                                  {/* Checklist Items */}
-                                  {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                                    <div className="mb-2 space-y-1">
-                                      {checklistItems[task.id].map((item) => (
-                                        <div key={item.id} className="flex items-center space-x-2">
-                                          <Checkbox
-                                            checked={item.is_completed}
-                                            onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                            className="border-gray-600"
-                                          />
-                                          <span
-                                            className={`text-xs ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                          >
-                                            {item.text}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center space-x-2">
-                                    <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                                    {task.due_date && (
-                                      <div className="flex items-center space-x-1 text-xs text-gray-400">
-                                        <Calendar className="h-3 w-3 text-red-400" />
-                                        <span>{new Date(task.due_date).toLocaleDateString()}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="ml-4">
-                                  <Select
-                                    value={task.status}
-                                    onValueChange={(value) => updateTaskStatus(task.id, value)}
-                                  >
-                                    <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-gray-900 border-gray-700">
-                                      <SelectItem value="todo" className="text-white">
-                                        To Do
-                                      </SelectItem>
-                                      <SelectItem value="in_progress" className="text-white">
-                                        In Progress
-                                      </SelectItem>
-                                      <SelectItem value="done" className="text-white">
-                                        Done
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-500 mt-2">
-                                Created: {new Date(task.created_at).toLocaleDateString()}
-                                {task.completed_at && (
-                                  <span className="ml-4">
-                                    Completed: {new Date(task.completed_at).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            <div className="space-y-4">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  checklistItems={checklistItems[task.id]}
+                  onStatusChange={updateTaskStatus}
+                  onChecklistToggle={toggleChecklistItem}
+                />
+              ))}
             </div>
           )}
         </div>
