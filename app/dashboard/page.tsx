@@ -27,6 +27,10 @@ export default function Dashboard() {
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+
+  // Add this computed value after the state declarations
+  const filteredTasks = statusFilter === "all" ? tasks : tasks.filter((task) => task.status === statusFilter)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -516,7 +520,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -666,95 +670,268 @@ export default function Dashboard() {
 
         {/* Tasks List */}
         <div>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
-            <p className="text-gray-400">Manage your dark productivity empire</p>
-          </div>
-
-          <div className="space-y-4">
-            {tasks.length === 0 ? (
-              <Card className="bg-black/40 border-gray-800">
-                <CardContent className="py-8 text-center">
-                  <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No tasks yet. Create your first task above!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              tasks.map((task) => (
-                <Card key={task.id} className="task-card">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                          <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                          {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
-                        </div>
-                        {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
-                        {/* Checklist Items */}
-                        {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                          <div className="mb-3 space-y-2">
-                            {checklistItems[task.id].map((item) => (
-                              <div key={item.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  checked={item.is_completed}
-                                  onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                  className="border-gray-600"
-                                />
-                                <span
-                                  className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                >
-                                  {item.text}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-2 mb-2">
-                          {getStatusIcon(task.status)}
-                          <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                        </div>
-
-                        {task.due_date && (
-                          <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                            <Calendar className="h-3 w-3 text-red-400" />
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="ml-4">
-                        <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                          <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700">
-                            <SelectItem value="todo" className="text-white">
-                              To Do
-                            </SelectItem>
-                            <SelectItem value="in_progress" className="text-white">
-                              In Progress
-                            </SelectItem>
-                            <SelectItem value="done" className="text-white">
-                              Done
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Created: {new Date(task.created_at).toLocaleDateString()}
-                      {task.completed_at && (
-                        <span className="ml-4">Completed: {new Date(task.completed_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
+              <p className="text-gray-400">Manage your dark productivity empire</p>
+            </div>
+            {tasks.length > 0 && (
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-400">
+                  {tasks.filter((t) => t.status === "done").length} of {tasks.length} completed
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40 bg-gray-900/50 border-gray-700 text-white">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    <SelectItem value="all" className="text-white">
+                      All Tasks
+                    </SelectItem>
+                    <SelectItem value="todo" className="text-white">
+                      To Do
+                    </SelectItem>
+                    <SelectItem value="in_progress" className="text-white">
+                      In Progress
+                    </SelectItem>
+                    <SelectItem value="done" className="text-white">
+                      Completed
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
+
+          {tasks.length === 0 ? (
+            // Enhanced Empty State
+            <Card className="bg-gradient-to-br from-gray-900/50 to-black/50 border-red-900/30 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent"></div>
+              <CardContent className="py-16 text-center relative">
+                <div className="max-w-md mx-auto">
+                  {/* Animated skull with glow effect */}
+                  <div className="relative mb-8">
+                    <Skull className="h-20 w-20 text-red-500 mx-auto animate-pulse" />
+                    <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-white mb-4">Welcome to the Dark Side of Productivity</h3>
+                  <p className="text-gray-400 mb-8 leading-relaxed">
+                    Your task realm awaits. Use the smart creation tool above to forge your first task from the shadows.
+                  </p>
+
+                  {/* Feature highlights */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
+                      <Brain className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                      <h4 className="text-white font-medium mb-1">Smart AI Parsing</h4>
+                      <p className="text-xs text-gray-500">Just type naturally - I'll extract all the details</p>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
+                      <Zap className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                      <h4 className="text-white font-medium mb-1">Lightning Fast</h4>
+                      <p className="text-xs text-gray-500">Create tasks in seconds with natural language</p>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
+                      <Star className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                      <h4 className="text-white font-medium mb-1">Dark & Powerful</h4>
+                      <p className="text-xs text-gray-500">Embrace productivity with gothic elegance</p>
+                    </div>
+                  </div>
+
+                  {/* Example suggestions */}
+                  <div className="text-left bg-black/40 rounded-lg p-4 border border-gray-700">
+                    <h4 className="text-white font-medium mb-3 flex items-center">
+                      <Brain className="h-4 w-4 mr-2 text-green-400" />
+                      Try these examples:
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div
+                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
+                        onClick={() =>
+                          setNaturalInput(
+                            "🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication",
+                          )
+                        }
+                      >
+                        <span className="text-red-400 mr-2">•</span>
+                        "🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication"
+                      </div>
+                      <div
+                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
+                        onClick={() =>
+                          setNaturalInput(
+                            "📝 Write project documentation low priority - need to document the API endpoints",
+                          )
+                        }
+                      >
+                        <span className="text-yellow-400 mr-2">•</span>
+                        "📝 Write project documentation low priority - need to document the API endpoints"
+                      </div>
+                      <div
+                        className="flex items-center text-gray-300 hover:text-white cursor-pointer transition-colors"
+                        onClick={() => setNaturalInput("⚡ Deploy to production Friday important")}
+                      >
+                        <span className="text-green-400 mr-2">•</span>
+                        "⚡ Deploy to production Friday important"
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3">Click any example to try it out!</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            // Enhanced Tasks List with grouping and filtering
+            <div className="space-y-6">
+              {/* Task Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-black/40 border-gray-800">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-white">{tasks.length}</div>
+                    <div className="text-xs text-gray-400">Total Tasks</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-black/40 border-yellow-900/50">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">
+                      {tasks.filter((t) => t.status === "todo").length}
+                    </div>
+                    <div className="text-xs text-gray-400">To Do</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-black/40 border-blue-900/50">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-400">
+                      {tasks.filter((t) => t.status === "in_progress").length}
+                    </div>
+                    <div className="text-xs text-gray-400">In Progress</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-black/40 border-green-900/50">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-green-400">
+                      {tasks.filter((t) => t.status === "done").length}
+                    </div>
+                    <div className="text-xs text-gray-400">Completed</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Grouped Tasks */}
+              {["todo", "in_progress", "done"].map((status) => {
+                const statusTasks = filteredTasks.filter((task) => task.status === status)
+                if (statusTasks.length === 0 && statusFilter !== "all") return null
+
+                const statusConfig = {
+                  todo: { title: "To Do", icon: AlertCircle, color: "text-red-400", bgColor: "bg-red-900/10" },
+                  in_progress: {
+                    title: "In Progress",
+                    icon: Clock,
+                    color: "text-yellow-400",
+                    bgColor: "bg-yellow-900/10",
+                  },
+                  done: { title: "Completed", icon: CheckCircle, color: "text-green-400", bgColor: "bg-green-900/10" },
+                }
+
+                const config = statusConfig[status as keyof typeof statusConfig]
+
+                return (
+                  <div key={status} className={`${config.bgColor} rounded-lg p-4 border border-gray-800`}>
+                    <div className="flex items-center mb-4">
+                      <config.icon className={`h-5 w-5 ${config.color} mr-2`} />
+                      <h3 className="text-lg font-semibold text-white">{config.title}</h3>
+                      <Badge className="ml-2 bg-gray-800 text-gray-300">{statusTasks.length}</Badge>
+                    </div>
+
+                    {statusTasks.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-sm">No {config.title.toLowerCase()} tasks</div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {statusTasks.map((task) => (
+                          <Card key={task.id} className="task-card">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                                    <h4 className="font-semibold text-white">{task.title}</h4>
+                                    {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
+                                  </div>
+                                  {task.description && <p className="text-gray-400 text-sm mb-2">{task.description}</p>}
+
+                                  {/* Checklist Items */}
+                                  {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                                    <div className="mb-2 space-y-1">
+                                      {checklistItems[task.id].map((item) => (
+                                        <div key={item.id} className="flex items-center space-x-2">
+                                          <Checkbox
+                                            checked={item.is_completed}
+                                            onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                            className="border-gray-600"
+                                          />
+                                          <span
+                                            className={`text-xs ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                          >
+                                            {item.text}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center space-x-2">
+                                    <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                                    {task.due_date && (
+                                      <div className="flex items-center space-x-1 text-xs text-gray-400">
+                                        <Calendar className="h-3 w-3 text-red-400" />
+                                        <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <Select
+                                    value={task.status}
+                                    onValueChange={(value) => updateTaskStatus(task.id, value)}
+                                  >
+                                    <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-gray-900 border-gray-700">
+                                      <SelectItem value="todo" className="text-white">
+                                        To Do
+                                      </SelectItem>
+                                      <SelectItem value="in_progress" className="text-white">
+                                        In Progress
+                                      </SelectItem>
+                                      <SelectItem value="done" className="text-white">
+                                        Done
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-2">
+                                Created: {new Date(task.created_at).toLocaleDateString()}
+                                {task.completed_at && (
+                                  <span className="ml-4">
+                                    Completed: {new Date(task.completed_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </main>
     </div>
