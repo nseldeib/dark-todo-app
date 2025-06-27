@@ -6,7 +6,6 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase, type Task, type Project, type ChecklistItem } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,7 +13,28 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, Plus, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar } from "lucide-react"
+import {
+  Skull,
+  LogOut,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Star,
+  Calendar,
+  Zap,
+  Brain,
+  Plus,
+  FolderPlus,
+} from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -23,27 +43,18 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<string>("")
   const [checklistItems, setChecklistItems] = useState<{ [taskId: string]: ChecklistItem[] }>({})
-  const [newTask, setNewTask] = useState({
-    title: "",
-    description: "",
-    emoji: "",
-    priority: "medium",
-    is_important: false,
-    due_date: "",
-  })
-  const [isAddingTask, setIsAddingTask] = useState(false)
+  const [naturalInput, setNaturalInput] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
   const router = useRouter()
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [selectedEmojiCategory, setSelectedEmojiCategory] = useState("popular")
 
-  const darkEmojis = {
-    popular: ["🖤", "💀", "👹", "😈", "🔥", "⚡", "✨", "🌟"],
-    creatures: ["🦇", "🕷️", "🐍", "🐺", "🦅", "🐉", "👻", "🧛"],
-    objects: ["🗡️", "⚔️", "🏴", "💎", "🔮", "⚰️", "🕯️", "🌙"],
-    symbols: ["💥", "⭐", "🌠", "🎭", "🌚", "🌑", "⚫", "🔴", "🟣", "🔺"],
-  }
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [newProjectName, setNewProjectName] = useState("")
+  const [newProjectDescription, setNewProjectDescription] = useState("")
+  const [newProjectEmoji, setNewProjectEmoji] = useState("📁")
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
 
   const getHumanReadableError = (errorMessage: string): string => {
     if (errorMessage.includes("Network")) {
@@ -65,17 +76,15 @@ export default function Dashboard() {
     checkUser()
   }, [])
 
+  // Parse input in real-time for preview
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element
-      if (showEmojiPicker && !target.closest(".relative")) {
-        setShowEmojiPicker(false)
-      }
+    if (naturalInput.trim()) {
+      const parsed = parseNaturalLanguage(naturalInput)
+      setParsedPreview(parsed)
+    } else {
+      setParsedPreview(null)
     }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [showEmojiPicker])
+  }, [naturalInput])
 
   const checkUser = async () => {
     try {
@@ -247,22 +256,186 @@ export default function Dashboard() {
     }
   }
 
-  const addTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newTask.title.trim() || !selectedProject) return
+  const parseNaturalLanguage = (input: string) => {
+    const text = input.toLowerCase()
 
-    setIsAddingTask(true)
+    // Extract emoji (first emoji found)
+    const emojiMatch = input.match(
+      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u,
+    )
+    const emoji = emojiMatch ? emojiMatch[0] : null
+
+    // Remove emoji from text for further processing
+    const cleanText = input
+      .replace(
+        /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
+        "",
+      )
+      .trim()
+
+    // Detect priority
+    let priority = "medium"
+    if (
+      text.includes("urgent") ||
+      text.includes("asap") ||
+      text.includes("high priority") ||
+      text.includes("important") ||
+      text.includes("critical") ||
+      text.includes("🔥") ||
+      text.includes("emergency")
+    ) {
+      priority = "high"
+    } else if (
+      text.includes("low priority") ||
+      text.includes("when i have time") ||
+      text.includes("someday") ||
+      text.includes("maybe") ||
+      text.includes("later")
+    ) {
+      priority = "low"
+    }
+
+    // Detect importance
+    const isImportant =
+      text.includes("important") ||
+      text.includes("critical") ||
+      text.includes("must do") ||
+      text.includes("priority") ||
+      text.includes("⭐") ||
+      text.includes("star")
+
+    // Extract due date patterns
+    let dueDate = null
+    const datePatterns = [
+      /(?:due|by|before|until)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
+      /(?:due|by|before|until)\s+(\d{1,2}-\d{1,2}-\d{4})/i,
+      /(?:due|by|before|until)\s+(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+      /(?:due|by|before|until)\s+(\d{1,2}\/\d{1,2})/i,
+      /(today|tomorrow)/i,
+      /(this week|next week)/i,
+    ]
+
+    for (const pattern of datePatterns) {
+      const match = text.match(pattern)
+      if (match) {
+        const dateStr = match[1] || match[0]
+        if (dateStr === "today") {
+          dueDate = new Date().toISOString().split("T")[0] + "T23:59"
+        } else if (dateStr === "tomorrow") {
+          const tomorrow = new Date()
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          dueDate = tomorrow.toISOString().split("T")[0] + "T23:59"
+        } else if (dateStr === "this week") {
+          const endOfWeek = new Date()
+          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()))
+          dueDate = endOfWeek.toISOString().split("T")[0] + "T23:59"
+        } else if (dateStr === "next week") {
+          const nextWeek = new Date()
+          nextWeek.setDate(nextWeek.getDate() + (14 - nextWeek.getDay()))
+          dueDate = nextWeek.toISOString().split("T")[0] + "T23:59"
+        } else {
+          // Try to parse the date
+          try {
+            const parsed = new Date(dateStr)
+            if (!isNaN(parsed.getTime())) {
+              dueDate = parsed.toISOString().split("T")[0] + "T23:59"
+            }
+          } catch (e) {
+            // Ignore invalid dates
+          }
+        }
+        break
+      }
+    }
+
+    // Split into title and description
+    let title = cleanText
+    let description = null
+
+    // Look for description indicators
+    const descriptionIndicators = [" - ", " : ", " because ", " to ", " for ", " about "]
+    for (const indicator of descriptionIndicators) {
+      if (cleanText.includes(indicator)) {
+        const parts = cleanText.split(indicator, 2)
+        title = parts[0].trim()
+        description = parts[1].trim()
+        break
+      }
+    }
+
+    // Clean up title (remove priority/date keywords)
+    title = title
+      .replace(/\b(urgent|asap|high priority|low priority|important|critical|must do|priority)\b/gi, "")
+      .replace(/\b(due|by|before|until)\s+[\w/-]+/gi, "")
+      .replace(/\b(today|tomorrow|this week|next week)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim()
+
+    return {
+      title: title || "New Task",
+      description,
+      emoji,
+      priority,
+      isImportant,
+      dueDate,
+    }
+  }
+
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProjectName.trim() || !user) return
+
+    setIsCreatingProject(true)
     try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProjectName.trim(),
+          description: newProjectDescription.trim() || null,
+          emoji: newProjectEmoji,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setProjects([data, ...projects])
+        setSelectedProject(data.id)
+        setNewProjectName("")
+        setNewProjectDescription("")
+        setNewProjectEmoji("📁")
+        setShowCreateProject(false)
+
+        // Fetch tasks for the new project (will be empty initially)
+        await fetchTasks(data.id)
+      }
+    } catch (error: any) {
+      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingProject(false)
+    }
+  }
+
+  const createTaskFromNaturalInput = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!naturalInput.trim() || !selectedProject) return
+
+    setIsProcessing(true)
+    try {
+      const parsed = parseNaturalLanguage(naturalInput)
+
       const taskData = {
-        title: newTask.title,
-        description: newTask.description || null,
-        emoji: newTask.emoji || null,
+        title: parsed.title,
+        description: parsed.description,
+        emoji: parsed.emoji,
         user_id: user.id,
         project_id: selectedProject,
         status: "todo",
-        priority: newTask.priority,
-        is_important: newTask.is_important,
-        due_date: newTask.due_date || null,
+        priority: parsed.priority,
+        is_important: parsed.isImportant,
+        due_date: parsed.dueDate,
       }
 
       const { data, error } = await supabase
@@ -280,19 +453,13 @@ export default function Dashboard() {
 
       if (data) {
         setTasks([data[0], ...tasks])
-        setNewTask({
-          title: "",
-          description: "",
-          emoji: "",
-          priority: "medium",
-          is_important: false,
-          due_date: "",
-        })
+        setNaturalInput("")
+        setParsedPreview(null)
       }
     } catch (error: any) {
       setError(`Failed to forge your task in the darkness: ${getHumanReadableError(error.message)}`)
     } finally {
-      setIsAddingTask(false)
+      setIsProcessing(false)
     }
   }
 
@@ -401,22 +568,37 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950">
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
+      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Skull className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+            <div className="relative">
+              <Skull className="h-8 w-8 text-red-500 animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+              <p className="text-xs text-gray-400">Embrace the productive darkness</p>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-400">Welcome, {user?.email}</span>
+            <div className="hidden md:flex items-center space-x-4 text-sm">
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-gray-400">Online</span>
+              </div>
+              <span className="text-gray-500">|</span>
+              <span className="text-gray-400">
+                {user?.email === "demo@todoapp.dev" ? "👑 Dark Overlord" : "🌙 Shadow Walker"}
+              </span>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent hover:border-red-500 transition-colors"
             >
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              Vanish
             </Button>
           </div>
         </div>
@@ -429,338 +611,533 @@ export default function Dashboard() {
           </Alert>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <Card className="bg-black/60 border-red-900/30 glow-effect">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Plus className="h-5 w-5 mr-2 text-red-500" />
-                  Add New Task
-                </CardTitle>
-                <CardDescription className="text-gray-400">Create a new task to conquer</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={addTask} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title" className="text-gray-300">
-                      Title
-                    </Label>
-                    <Input
-                      id="title"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
-                      placeholder="Enter task title..."
-                      required
-                    />
+        <div className="mb-8">
+          <Card className="bg-gradient-to-r from-black/80 via-red-950/20 to-black/80 border-red-900/30 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 via-transparent to-red-900/10 animate-pulse"></div>
+            <CardContent className="p-6 relative">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Skull className="h-10 w-10 text-red-500 animate-bounce" />
+                  <div className="absolute -top-1 -right-1 text-xs">
+                    {user?.email === "demo@todoapp.dev" ? "👑" : "🌙"}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-gray-300">
-                      Description
-                    </Label>
-                    <Textarea
-                      id="description"
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
-                      placeholder="Enter task description..."
-                      rows={3}
-                    />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-white to-red-200 bg-clip-text text-transparent">
+                    {user?.email === "demo@todoapp.dev"
+                      ? "Greetings, Supreme Dark Overlord! 👑"
+                      : "Welcome back, Shadow Walker! 🌙"}
+                  </h2>
+                  <p className="text-gray-400 text-lg">
+                    {user?.email === "demo@todoapp.dev"
+                      ? "Your demo realm trembles with anticipation... The minions await your dark commands! 🦇"
+                      : "The void whispers your name... Your tasks lurk in the shadows, ready to be conquered! ⚡"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-black/40 rounded-lg p-4 border border-red-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-400">{projects.length}</p>
+                      <p className="text-sm text-gray-400">Dark Projects</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emoji" className="text-gray-300 flex items-center">
-                      <span className="mr-2">Emoji</span>
-                      {newTask.emoji && <span className="text-lg">{newTask.emoji}</span>}
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="emoji"
-                        value={newTask.emoji}
-                        onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
-                        className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 pr-10"
-                        placeholder="Type or paste any emoji..."
-                        maxLength={4}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-gray-700 border-gray-600 transition-all duration-200"
-                        size="sm"
-                      >
-                        😈
-                      </Button>
-                      {showEmojiPicker && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-md p-3 z-10 shadow-2xl">
-                          {/* Category tabs */}
-                          <div className="flex space-x-1 mb-3 border-b border-gray-700 pb-2">
-                            {Object.keys(darkEmojis).map((category) => (
-                              <button
-                                key={category}
-                                type="button"
-                                onClick={() => setSelectedEmojiCategory(category)}
-                                className={`px-2 py-1 text-xs rounded transition-colors capitalize ${
-                                  selectedEmojiCategory === category
-                                    ? "bg-red-600 text-white"
-                                    : "text-gray-400 hover:text-white hover:bg-gray-800"
-                                }`}
-                              >
-                                {category}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Emoji grid */}
-                          <div className="grid grid-cols-8 gap-1 max-h-32 overflow-y-auto mb-3">
-                            {darkEmojis[selectedEmojiCategory].map((emoji, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => {
-                                  setNewTask({ ...newTask, emoji })
-                                  setShowEmojiPicker(false)
-                                }}
-                                className="text-lg hover:bg-gray-800 rounded p-1 transition-all duration-150 hover:scale-110"
-                                title={`Select ${emoji}`}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Native emoji picker button */}
-                          <div className="border-t border-gray-700 pt-3">
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                // Focus the emoji input to trigger native emoji picker
-                                const emojiInput = document.getElementById("emoji") as HTMLInputElement
-                                if (emojiInput) {
-                                  emojiInput.focus()
-                                  // Try to trigger native emoji picker on supported browsers
-                                  if (navigator.userAgent.includes("Mac")) {
-                                    // On Mac, Cmd+Ctrl+Space opens emoji picker
-                                    const event = new KeyboardEvent("keydown", {
-                                      key: " ",
-                                      code: "Space",
-                                      metaKey: true,
-                                      ctrlKey: true,
-                                      bubbles: true,
-                                    })
-                                    emojiInput.dispatchEvent(event)
-                                  }
-                                }
-                                setShowEmojiPicker(false)
-                              }}
-                              className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm py-2"
-                              size="sm"
-                            >
-                              <span className="mr-2">🎭</span>
-                              Open System Emoji Picker
-                            </Button>
-                            <p className="text-xs text-gray-500 mt-2 text-center">
-                              Or type directly in the input field above
-                            </p>
+                </div>
+
+                <div className="bg-black/40 rounded-lg p-4 border border-yellow-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-yellow-400">{tasks.length}</p>
+                      <p className="text-sm text-gray-400">Shadow Tasks</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-black/40 rounded-lg p-4 border border-green-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-400">
+                        {tasks.filter((task) => task.status === "done").length}
+                      </p>
+                      <p className="text-sm text-gray-400">Souls Conquered</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {user?.email === "demo@todoapp.dev" && (
+                <div className="mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                  <p className="text-purple-300 text-sm flex items-center">
+                    <Zap className="h-4 w-4 mr-2" />
+                    <strong>Demo Realm Activated:</strong> You wield unlimited power here, Dark Overlord! Create,
+                    destroy, and command at will! 🔮
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Smart Task Creation - Now at the top */}
+        <div className="mb-8">
+          <Card className="bg-black/60 border-red-900/30 glow-effect">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-white flex items-center">
+                <Brain className="h-5 w-5 mr-2 text-red-500" />
+                Smart Task Creation
+                <Zap className="h-4 w-4 ml-2 text-yellow-400" />
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Just type naturally - I'll understand the context and extract all the details
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={createTaskFromNaturalInput} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="natural-input" className="text-gray-300">
+                    What needs to be done?
+                  </Label>
+                  <Textarea
+                    id="natural-input"
+                    value={naturalInput}
+                    onChange={(e) => setNaturalInput(e.target.value)}
+                    className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
+                    placeholder="🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication"
+                    rows={4}
+                  />
+
+                  {/* Real-time parsing preview */}
+                  {parsedPreview && (
+                    <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                      <div className="flex items-center mb-2">
+                        <Brain className="h-4 w-4 text-green-400 mr-2" />
+                        <span className="text-green-400 text-sm font-medium">AI Parsed Preview:</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Title:</span>
+                          <div className="text-white flex items-center">
+                            {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
+                            {parsedPreview.title}
+                            {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
                           </div>
                         </div>
-                      )}
+                        <div>
+                          <span className="text-gray-400">Priority:</span>
+                          <Badge className={`ml-2 ${getPriorityColor(parsedPreview.priority)}`}>
+                            {parsedPreview.priority}
+                          </Badge>
+                        </div>
+                        {parsedPreview.description && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">Description:</span>
+                            <div className="text-gray-300">{parsedPreview.description}</div>
+                          </div>
+                        )}
+                        {parsedPreview.dueDate && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">Due Date:</span>
+                            <div className="text-gray-300 flex items-center">
+                              <Calendar className="h-3 w-3 mr-1 text-red-400" />
+                              {new Date(parsedPreview.dueDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500 space-y-1 mt-3">
+                    <p className="flex items-center">
+                      <Brain className="h-3 w-3 mr-1 text-green-400" />
+                      <strong>Smart Detection Examples:</strong>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-4">
+                      <p>
+                        • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 automatically detected
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Priority:</span> "urgent", "important", "low priority"
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday", "12/25/2024"
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Details:</span> Use " - " to separate title from description
+                      </p>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="priority" className="text-gray-300">
-                      Priority
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 flex-1">
+                    <Label htmlFor="project-select" className="text-gray-300 text-sm">
+                      Project:
                     </Label>
-                    <Select
-                      value={newTask.priority}
-                      onValueChange={(value) => setNewTask({ ...newTask, priority: value })}
-                    >
-                      <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700">
-                        <SelectItem value="low" className="text-white">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                            <span>Low Priority</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="medium" className="text-white">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                            <span>Medium Priority</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="high" className="text-white">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                            <span>High Priority</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="due_date" className="text-gray-300 flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-red-400" />
-                      Due Date
-                      {newTask.due_date && (
-                        <span className="ml-2 text-xs text-gray-400">
-                          ({new Date(newTask.due_date).toLocaleDateString()})
-                        </span>
-                      )}
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="due_date"
-                        type="datetime-local"
-                        value={newTask.due_date}
-                        onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                        className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500"
-                        min={new Date().toISOString().slice(0, 16)}
-                      />
-                      {newTask.due_date && (
-                        <Button
-                          type="button"
-                          onClick={() => setNewTask({ ...newTask, due_date: "" })}
-                          className="absolute right-1 top-1 h-8 w-8 p-0 bg-gray-800 hover:bg-red-600 border-gray-600 transition-colors"
-                          size="sm"
-                          title="Clear due date"
-                        >
-                          ✕
-                        </Button>
-                      )}
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Select value={selectedProject} onValueChange={setSelectedProject}>
+                        <SelectTrigger className="flex-1 bg-gray-900/50 border-gray-700 text-white">
+                          <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-700">
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id} className="text-white">
+                              {project.emoji} {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
+                        <DialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap bg-transparent"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            New Project
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-gray-900 border-gray-700 text-white">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center">
+                              <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
+                              Create New Project
+                            </DialogTitle>
+                            <DialogDescription className="text-gray-400">
+                              Organize your tasks into projects for better productivity
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={createProject} className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="project-emoji" className="text-gray-300">
+                                Emoji
+                              </Label>
+                              <Input
+                                id="project-emoji"
+                                value={newProjectEmoji}
+                                onChange={(e) => setNewProjectEmoji(e.target.value)}
+                                className="bg-gray-800 border-gray-700 text-white text-center text-2xl h-12"
+                                placeholder="📁"
+                                maxLength={2}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="project-name" className="text-gray-300">
+                                Project Name *
+                              </Label>
+                              <Input
+                                id="project-name"
+                                value={newProjectName}
+                                onChange={(e) => setNewProjectName(e.target.value)}
+                                className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
+                                placeholder="e.g., Work Tasks, Personal Goals, Side Projects"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="project-description" className="text-gray-300">
+                                Description (Optional)
+                              </Label>
+                              <Textarea
+                                id="project-description"
+                                value={newProjectDescription}
+                                onChange={(e) => setNewProjectDescription(e.target.value)}
+                                className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
+                                placeholder="Brief description of this project..."
+                                rows={3}
+                              />
+                            </div>
+                            <div className="flex justify-end space-x-2 pt-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowCreateProject(false)}
+                                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="submit"
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                disabled={isCreatingProject || !newProjectName.trim()}
+                              >
+                                {isCreatingProject ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FolderPlus className="h-4 w-4 mr-2" />
+                                    Create Project
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 rounded-md bg-gray-900/30 border border-gray-700">
-                    <Checkbox
-                      id="important"
-                      checked={newTask.is_important}
-                      onCheckedChange={(checked) => setNewTask({ ...newTask, is_important: !!checked })}
-                      className="border-gray-700 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
-                    />
-                    <Label htmlFor="important" className="text-gray-300 text-sm flex items-center cursor-pointer">
-                      <Star
-                        className={`h-4 w-4 mr-2 ${newTask.is_important ? "text-red-400 fill-current" : "text-gray-500"}`}
-                      />
-                      Mark as important
-                    </Label>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="project" className="text-gray-300">
-                      Project
-                    </Label>
-                    <Select value={selectedProject} onValueChange={setSelectedProject}>
-                      <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white">
-                        <SelectValue placeholder="Select a project" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700">
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id} className="text-white">
-                            {project.emoji} {project.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button
                     type="submit"
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
-                    disabled={isAddingTask || !selectedProject}
+                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center ml-4"
+                    disabled={isProcessing || !selectedProject || !naturalInput.trim()}
                   >
-                    {isAddingTask ? "Adding..." : "Add Task"}
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Create Task
+                      </>
+                    )}
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Projects Management */}
+        <div className="mb-8">
+          <Card className="bg-black/60 border-gray-800">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-white flex items-center">
+                    <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
+                    Projects
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">Organize your tasks into focused projects</CardDescription>
+                </div>
+                <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Project
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-900 border-gray-700 text-white">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center">
+                        <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
+                        Create New Project
+                      </DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Organize your tasks into projects for better productivity
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={createProject} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="project-emoji-main" className="text-gray-300">
+                          Emoji
+                        </Label>
+                        <Input
+                          id="project-emoji-main"
+                          value={newProjectEmoji}
+                          onChange={(e) => setNewProjectEmoji(e.target.value)}
+                          className="bg-gray-800 border-gray-700 text-white text-center text-2xl h-12"
+                          placeholder="📁"
+                          maxLength={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="project-name-main" className="text-gray-300">
+                          Project Name *
+                        </Label>
+                        <Input
+                          id="project-name-main"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
+                          placeholder="e.g., Work Tasks, Personal Goals, Side Projects"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="project-description-main" className="text-gray-300">
+                          Description (Optional)
+                        </Label>
+                        <Textarea
+                          id="project-description-main"
+                          value={newProjectDescription}
+                          onChange={(e) => setNewProjectDescription(e.target.value)}
+                          className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
+                          placeholder="Brief description of this project..."
+                          rows={3}
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowCreateProject(false)}
+                          className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          disabled={isCreatingProject || !newProjectName.trim()}
+                        >
+                          {isCreatingProject ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <FolderPlus className="h-4 w-4 mr-2" />
+                              Create Project
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {projects.map((project) => (
+                  <div
+                    key={project.id}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                      selectedProject === project.id
+                        ? "bg-red-900/20 border-red-500/50 ring-1 ring-red-500/30"
+                        : "bg-gray-800/50 border-gray-700 hover:border-gray-600"
+                    }`}
+                    onClick={() => {
+                      setSelectedProject(project.id)
+                      fetchTasks(project.id)
+                    }}
+                  >
+                    <div className="flex items-center space-x-3 mb-2">
+                      <span className="text-2xl">{project.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium truncate">{project.name}</h3>
+                        {project.description && <p className="text-gray-400 text-sm truncate">{project.description}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{tasks.filter((task) => task.project_id === project.id).length} tasks</span>
+                      <span>{new Date(project.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tasks List */}
+        <div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
+            <p className="text-gray-400">Manage your dark productivity empire</p>
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Your Tasks</h2>
-              <p className="text-gray-400">Manage your dark productivity empire</p>
-            </div>
-
-            <div className="space-y-4">
-              {tasks.length === 0 ? (
-                <Card className="bg-black/40 border-gray-800">
-                  <CardContent className="py-8 text-center">
-                    <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No tasks yet. Create your first task to begin!</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                tasks.map((task) => (
-                  <Card key={task.id} className="task-card">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                            <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                            {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
-                          </div>
-                          {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
-                          {/* Checklist Items */}
-                          {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                            <div className="mb-3 space-y-2">
-                              {checklistItems[task.id].map((item) => (
-                                <div key={item.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    checked={item.is_completed}
-                                    onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                    className="border-gray-600"
-                                  />
-                                  <span
-                                    className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                  >
-                                    {item.text}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center space-x-2 mb-2">
-                            {getStatusIcon(task.status)}
-                            <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                            <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                          </div>
-
-                          {task.due_date && (
-                            <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                              <Calendar className="h-3 w-3 text-red-400" />
-                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                            </div>
-                          )}
+          <div className="space-y-4">
+            {tasks.length === 0 ? (
+              <Card className="bg-black/40 border-gray-800">
+                <CardContent className="py-8 text-center">
+                  <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No tasks yet. Create your first task above!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              tasks.map((task) => (
+                <Card key={task.id} className="task-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                          <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                          {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
-                        <div className="ml-4">
-                          <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                            <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-gray-700">
-                              <SelectItem value="todo" className="text-white">
-                                To Do
-                              </SelectItem>
-                              <SelectItem value="in_progress" className="text-white">
-                                In Progress
-                              </SelectItem>
-                              <SelectItem value="done" className="text-white">
-                                Done
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                        {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+
+                        {/* Checklist Items */}
+                        {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                          <div className="mb-3 space-y-2">
+                            {checklistItems[task.id].map((item) => (
+                              <div key={item.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={item.is_completed}
+                                  onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                  className="border-gray-600"
+                                />
+                                <span
+                                  className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                >
+                                  {item.text}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2 mb-2">
+                          {getStatusIcon(task.status)}
+                          <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
                         </div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Created: {new Date(task.created_at).toLocaleDateString()}
-                        {task.completed_at && (
-                          <span className="ml-4">Completed: {new Date(task.completed_at).toLocaleDateString()}</span>
+
+                        {task.due_date && (
+                          <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
+                            <Calendar className="h-3 w-3 text-red-400" />
+                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                          </div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+                      <div className="ml-4">
+                        <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                          <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-900 border-gray-700">
+                            <SelectItem value="todo" className="text-white">
+                              To Do
+                            </SelectItem>
+                            <SelectItem value="in_progress" className="text-white">
+                              In Progress
+                            </SelectItem>
+                            <SelectItem value="done" className="text-white">
+                              Done
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Created: {new Date(task.created_at).toLocaleDateString()}
+                      {task.completed_at && (
+                        <span className="ml-4">Completed: {new Date(task.completed_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </main>
