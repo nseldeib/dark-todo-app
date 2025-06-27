@@ -13,28 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Skull,
-  LogOut,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Star,
-  Calendar,
-  Zap,
-  Brain,
-  Plus,
-  FolderPlus,
-} from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -49,12 +28,6 @@ export default function Dashboard() {
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
   const router = useRouter()
-
-  const [showCreateProject, setShowCreateProject] = useState(false)
-  const [newProjectName, setNewProjectName] = useState("")
-  const [newProjectDescription, setNewProjectDescription] = useState("")
-  const [newProjectEmoji, setNewProjectEmoji] = useState("📁")
-  const [isCreatingProject, setIsCreatingProject] = useState(false)
 
   const getHumanReadableError = (errorMessage: string): string => {
     if (errorMessage.includes("Network")) {
@@ -381,43 +354,6 @@ export default function Dashboard() {
     }
   }
 
-  const createProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newProjectName.trim() || !user) return
-
-    setIsCreatingProject(true)
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .insert({
-          user_id: user.id,
-          name: newProjectName.trim(),
-          description: newProjectDescription.trim() || null,
-          emoji: newProjectEmoji,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      if (data) {
-        setProjects([data, ...projects])
-        setSelectedProject(data.id)
-        setNewProjectName("")
-        setNewProjectDescription("")
-        setNewProjectEmoji("📁")
-        setShowCreateProject(false)
-
-        // Fetch tasks for the new project (will be empty initially)
-        await fetchTasks(data.id)
-      }
-    } catch (error: any) {
-      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
-    } finally {
-      setIsCreatingProject(false)
-    }
-  }
-
   const createTaskFromNaturalInput = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!naturalInput.trim() || !selectedProject) return
@@ -568,37 +504,22 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950">
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="relative">
-              <Skull className="h-8 w-8 text-red-500 animate-pulse" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
-              <p className="text-xs text-gray-400">Embrace the productive darkness</p>
-            </div>
+            <Skull className="h-8 w-8 text-red-500" />
+            <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-gray-400">Online</span>
-              </div>
-              <span className="text-gray-500">|</span>
-              <span className="text-gray-400">
-                {user?.email === "demo@todoapp.dev" ? "👑 Dark Overlord" : "🌙 Shadow Walker"}
-              </span>
-            </div>
+            <span className="text-gray-400">Welcome, {user?.email}</span>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent hover:border-red-500 transition-colors"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
             >
               <LogOut className="h-4 w-4 mr-2" />
-              Vanish
+              Sign Out
             </Button>
           </div>
         </div>
@@ -610,78 +531,6 @@ export default function Dashboard() {
             <AlertDescription className="text-red-400">{error}</AlertDescription>
           </Alert>
         )}
-
-        <div className="mb-8">
-          <Card className="bg-gradient-to-r from-black/80 via-red-950/20 to-black/80 border-red-900/30 overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 via-transparent to-red-900/10 animate-pulse"></div>
-            <CardContent className="p-6 relative">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Skull className="h-10 w-10 text-red-500 animate-bounce" />
-                  <div className="absolute -top-1 -right-1 text-xs">
-                    {user?.email === "demo@todoapp.dev" ? "👑" : "🌙"}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-white to-red-200 bg-clip-text text-transparent">
-                    {user?.email === "demo@todoapp.dev"
-                      ? "Greetings, Supreme Dark Overlord! 👑"
-                      : "Welcome back, Shadow Walker! 🌙"}
-                  </h2>
-                  <p className="text-gray-400 text-lg">
-                    {user?.email === "demo@todoapp.dev"
-                      ? "Your demo realm trembles with anticipation... The minions await your dark commands! 🦇"
-                      : "The void whispers your name... Your tasks lurk in the shadows, ready to be conquered! ⚡"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-black/40 rounded-lg p-4 border border-red-900/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    <div>
-                      <p className="text-2xl font-bold text-red-400">{projects.length}</p>
-                      <p className="text-sm text-gray-400">Dark Projects</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-black/40 rounded-lg p-4 border border-yellow-900/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <div>
-                      <p className="text-2xl font-bold text-yellow-400">{tasks.length}</p>
-                      <p className="text-sm text-gray-400">Shadow Tasks</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-black/40 rounded-lg p-4 border border-green-900/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <div>
-                      <p className="text-2xl font-bold text-green-400">
-                        {tasks.filter((task) => task.status === "done").length}
-                      </p>
-                      <p className="text-sm text-gray-400">Souls Conquered</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {user?.email === "demo@todoapp.dev" && (
-                <div className="mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                  <p className="text-purple-300 text-sm flex items-center">
-                    <Zap className="h-4 w-4 mr-2" />
-                    <strong>Demo Realm Activated:</strong> You wield unlimited power here, Dark Overlord! Create,
-                    destroy, and command at will! 🔮
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Smart Task Creation - Now at the top */}
         <div className="mb-8">
@@ -775,121 +624,26 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 flex-1">
+                  <div className="flex items-center space-x-2">
                     <Label htmlFor="project-select" className="text-gray-300 text-sm">
                       Project:
                     </Label>
-                    <div className="flex items-center space-x-2 flex-1">
-                      <Select value={selectedProject} onValueChange={setSelectedProject}>
-                        <SelectTrigger className="flex-1 bg-gray-900/50 border-gray-700 text-white">
-                          <SelectValue placeholder="Select project" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-700">
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id} className="text-white">
-                              {project.emoji} {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
-                        <DialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap bg-transparent"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            New Project
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-gray-900 border-gray-700 text-white">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center">
-                              <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
-                              Create New Project
-                            </DialogTitle>
-                            <DialogDescription className="text-gray-400">
-                              Organize your tasks into projects for better productivity
-                            </DialogDescription>
-                          </DialogHeader>
-                          <form onSubmit={createProject} className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="project-emoji" className="text-gray-300">
-                                Emoji
-                              </Label>
-                              <Input
-                                id="project-emoji"
-                                value={newProjectEmoji}
-                                onChange={(e) => setNewProjectEmoji(e.target.value)}
-                                className="bg-gray-800 border-gray-700 text-white text-center text-2xl h-12"
-                                placeholder="📁"
-                                maxLength={2}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="project-name" className="text-gray-300">
-                                Project Name *
-                              </Label>
-                              <Input
-                                id="project-name"
-                                value={newProjectName}
-                                onChange={(e) => setNewProjectName(e.target.value)}
-                                className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
-                                placeholder="e.g., Work Tasks, Personal Goals, Side Projects"
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="project-description" className="text-gray-300">
-                                Description (Optional)
-                              </Label>
-                              <Textarea
-                                id="project-description"
-                                value={newProjectDescription}
-                                onChange={(e) => setNewProjectDescription(e.target.value)}
-                                className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
-                                placeholder="Brief description of this project..."
-                                rows={3}
-                              />
-                            </div>
-                            <div className="flex justify-end space-x-2 pt-4">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setShowCreateProject(false)}
-                                className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                type="submit"
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                                disabled={isCreatingProject || !newProjectName.trim()}
-                              >
-                                {isCreatingProject ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Creating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <FolderPlus className="h-4 w-4 mr-2" />
-                                    Create Project
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
+                    <Select value={selectedProject} onValueChange={setSelectedProject}>
+                      <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700 text-white">
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id} className="text-white">
+                            {project.emoji} {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <Button
                     type="submit"
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center ml-4"
+                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center"
                     disabled={isProcessing || !selectedProject || !naturalInput.trim()}
                   >
                     {isProcessing ? (
@@ -906,144 +660,6 @@ export default function Dashboard() {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Projects Management */}
-        <div className="mb-8">
-          <Card className="bg-black/60 border-gray-800">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-white flex items-center">
-                    <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
-                    Projects
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">Organize your tasks into focused projects</CardDescription>
-                </div>
-                <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Project
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-gray-900 border-gray-700 text-white">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center">
-                        <FolderPlus className="h-5 w-5 mr-2 text-red-500" />
-                        Create New Project
-                      </DialogTitle>
-                      <DialogDescription className="text-gray-400">
-                        Organize your tasks into projects for better productivity
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={createProject} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="project-emoji-main" className="text-gray-300">
-                          Emoji
-                        </Label>
-                        <Input
-                          id="project-emoji-main"
-                          value={newProjectEmoji}
-                          onChange={(e) => setNewProjectEmoji(e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white text-center text-2xl h-12"
-                          placeholder="📁"
-                          maxLength={2}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="project-name-main" className="text-gray-300">
-                          Project Name *
-                        </Label>
-                        <Input
-                          id="project-name-main"
-                          value={newProjectName}
-                          onChange={(e) => setNewProjectName(e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
-                          placeholder="e.g., Work Tasks, Personal Goals, Side Projects"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="project-description-main" className="text-gray-300">
-                          Description (Optional)
-                        </Label>
-                        <Textarea
-                          id="project-description-main"
-                          value={newProjectDescription}
-                          onChange={(e) => setNewProjectDescription(e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white focus:border-red-500"
-                          placeholder="Brief description of this project..."
-                          rows={3}
-                        />
-                      </div>
-                      <div className="flex justify-end space-x-2 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowCreateProject(false)}
-                          className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          disabled={isCreatingProject || !newProjectName.trim()}
-                        >
-                          {isCreatingProject ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Creating...
-                            </>
-                          ) : (
-                            <>
-                              <FolderPlus className="h-4 w-4 mr-2" />
-                              Create Project
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                      selectedProject === project.id
-                        ? "bg-red-900/20 border-red-500/50 ring-1 ring-red-500/30"
-                        : "bg-gray-800/50 border-gray-700 hover:border-gray-600"
-                    }`}
-                    onClick={() => {
-                      setSelectedProject(project.id)
-                      fetchTasks(project.id)
-                    }}
-                  >
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className="text-2xl">{project.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{project.name}</h3>
-                        {project.description && <p className="text-gray-400 text-sm truncate">{project.description}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{tasks.filter((task) => task.project_id === project.id).length} tasks</span>
-                      <span>{new Date(project.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
         </div>
