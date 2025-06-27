@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { supabase, type Task, type Project, type ChecklistItem } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,10 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
+import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain, RefreshCw } from "lucide-react"
+import { useErrorHandler } from "@/hooks/use-error-handler"
+import { useRetry } from "@/hooks/use-retry"
+import { validateTaskInput, sanitizeInput } from "@/lib/validation"
 
 // Define valid status values to match database
 const VALID_STATUSES = ["todo", "in_progress", "done"] as const
@@ -29,214 +32,244 @@ export default function Dashboard() {
   const [naturalInput, setNaturalInput] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [parsedPreview, setParsedPreview] = useState<any>(null)
-  const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
   const [showCompleted, setShowCompleted] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+
   const router = useRouter()
+  const { error, handleError, clearError, hasError } = useErrorHandler()
+  const { executeWithRetry, retryCount, isRetrying } = useRetry()
 
-  const getHumanReadableError = (errorMessage: string): string => {
-    if (errorMessage.includes("Network")) {
-      return "The digital underworld is unreachable. Check your connection."
-    } else if (errorMessage.includes("JWT")) {
-      return "Your dark session has expired. Please sign in again."
-    } else if (errorMessage.includes("permission")) {
-      return "The shadows deny you access. Insufficient permissions."
-    } else if (errorMessage.includes("not found")) {
-      return "What you seek has vanished into the void."
-    } else if (errorMessage.includes("timeout")) {
-      return "The darkness is taking too long to respond. Try again."
-    } else if (errorMessage.includes("enum") || errorMessage.includes("invalid input value")) {
-      return "The task status is cursed. Please try refreshing the page."
-    } else {
-      return `Something wicked happened: ${errorMessage}`
-    }
-  }
+  // Memoized filtered tasks for performance
+  const activeTasks = useMemo(() => tasks.filter((task) => task.status !== "done"), [tasks])
+
+  const completedTasks = useMemo(() => tasks.filter((task) => task.status === "done"), [tasks])
 
   useEffect(() => {
-    checkUser()
-  }, [])
+    let mounted = true
 
-  // Parse input in real-time for preview
-  useEffect(() => {
-    if (naturalInput.trim()) {
-      const parsed = parseNaturalLanguage(naturalInput)
-      setParsedPreview(parsed)
-    } else {
-      setParsedPreview(null)
+    const initializeApp = async () => {
+      try {
+        await checkUser()
+      } catch (error) {
+        if (mounted) {
+          handleError(error, "App Initialization")
+        }
+      }
     }
-  }, [naturalInput])
 
-  const checkUser = async () => {
+    initializeApp()
+
+    return () => {
+      mounted = false
+    }
+  }, [router]) // Added router dependency
+
+  // Parse input in real-time for preview with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (naturalInput.trim()) {
+        try {
+          const parsed = parseNaturalLanguage(naturalInput)
+          setParsedPreview(parsed)
+
+          // Validate the parsed input
+          const validation = validateTaskInput({
+            title: parsed.title,
+            description: parsed.description,
+            priority: parsed.priority,
+            dueDate: parsed.dueDate,
+          })
+
+          setValidationErrors(validation.errors)
+        } catch (error) {
+          handleError(error, "Input Parsing")
+          setParsedPreview(null)
+        }
+      } else {
+        setParsedPreview(null)
+        setValidationErrors([])
+      }
+    }, 300) // Debounce for 300ms
+
+    return () => clearTimeout(timeoutId)
+  }, [naturalInput, handleError])
+
+  const checkUser = useCallback(async () => {
     try {
       setDebugInfo("Checking user authentication...")
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
+      const result = await executeWithRetry(async () => {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
+        if (userError) throw userError
+        return user
+      })
 
-      if (userError) {
-        console.error("Auth error:", userError)
-        setError(`The authentication spirits are restless: ${getHumanReadableError(userError.message)}`)
-        setLoading(false)
-        return
-      }
-
-      if (!user) {
+      if (!result) {
         setDebugInfo("No user found, redirecting to sign-in...")
-        router.push("/sign-in")
+        router.replace("/sign-in") // Use replace instead of push
         return
       }
 
-      setUser(user)
-      setDebugInfo(`User found: ${user.email}`)
+      setUser(result)
+      setDebugInfo(`User found: ${result.email}`)
 
       // Fetch projects after user is confirmed
-      await fetchProjects(user.id)
+      await fetchProjects(result.id)
     } catch (error: any) {
-      console.error("Error checking user:", error)
-      setError(`Error checking user: ${error.message}`)
+      handleError(error, "User Authentication")
       setLoading(false)
     }
-  }
+  }, [router, executeWithRetry, handleError])
 
-  const fetchProjects = async (userId: string) => {
-    try {
-      setDebugInfo("Fetching projects...")
+  const fetchProjects = useCallback(
+    async (userId: string) => {
+      try {
+        setDebugInfo("Fetching projects...")
 
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
+        const data = await executeWithRetry(async () => {
+          const { data, error } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Projects fetch error:", error)
-        setError(`Failed to summon your projects: ${getHumanReadableError(error.message)}`)
-        setLoading(false)
-        return
-      }
-
-      setProjects(data || [])
-      setDebugInfo(`Found ${data?.length || 0} projects`)
-
-      if (data && data.length > 0) {
-        setSelectedProject(data[0].id)
-        await fetchTasks(data[0].id)
-      } else {
-        // No projects found, create a default one
-        setDebugInfo("No projects found, creating default project...")
-        await createDefaultProject(userId)
-      }
-    } catch (error: any) {
-      console.error("Error fetching projects:", error)
-      setError(`Error fetching projects: ${error.message}`)
-      setLoading(false)
-    }
-  }
-
-  const createDefaultProject = async (userId: string) => {
-    try {
-      const { data: projectData, error: projectError } = await supabase
-        .from("projects")
-        .insert({
-          user_id: userId,
-          name: "My Tasks",
-          description: "Default project for your tasks",
-          emoji: "📝",
+          if (error) throw error
+          return data
         })
-        .select()
-        .single()
 
-      if (projectError) {
-        console.error("Error creating default project:", projectError)
-        setError(`Error creating default project: ${projectError.message}`)
+        setProjects(data || [])
+        setDebugInfo(`Found ${data?.length || 0} projects`)
+
+        if (data && data.length > 0) {
+          setSelectedProject(data[0].id)
+          await fetchTasks(data[0].id)
+        } else {
+          // No projects found, create a default one
+          setDebugInfo("No projects found, creating default project...")
+          await createDefaultProject(userId)
+        }
+      } catch (error: any) {
+        handleError(error, "Fetch Projects")
         setLoading(false)
-        return
       }
+    },
+    [executeWithRetry, handleError],
+  )
 
-      if (projectData) {
-        setProjects([projectData])
-        setSelectedProject(projectData.id)
-        setDebugInfo("Default project created successfully")
-        await fetchTasks(projectData.id)
-      }
-    } catch (error: any) {
-      console.error("Error creating default project:", error)
-      setError(`Error creating default project: ${error.message}`)
-      setLoading(false)
-    }
-  }
+  const createDefaultProject = useCallback(
+    async (userId: string) => {
+      try {
+        const projectData = await executeWithRetry(async () => {
+          const { data: projectData, error: projectError } = await supabase
+            .from("projects")
+            .insert({
+              user_id: userId,
+              name: "My Tasks",
+              description: "Default project for your tasks",
+              emoji: "📝",
+            })
+            .select()
+            .single()
 
-  const fetchTasks = async (projectId: string) => {
-    try {
-      setDebugInfo("Fetching tasks...")
+          if (projectError) throw projectError
+          return projectData
+        })
 
-      const { data, error } = await supabase
-        .from("tasks")
-        .select(`
-        *,
-        projects (
-          name,
-          emoji
-        )
-      `)
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Tasks fetch error:", error)
-        setError(`Error fetching tasks: ${error.message}`)
+        if (projectData) {
+          setProjects([projectData])
+          setSelectedProject(projectData.id)
+          setDebugInfo("Default project created successfully")
+          await fetchTasks(projectData.id)
+        }
+      } catch (error: any) {
+        handleError(error, "Create Default Project")
         setLoading(false)
-        return
       }
+    },
+    [executeWithRetry, handleError],
+  )
 
-      setTasks(data || [])
-      setDebugInfo(`Found ${data?.length || 0} tasks`)
+  const fetchTasks = useCallback(
+    async (projectId: string) => {
+      try {
+        setDebugInfo("Fetching tasks...")
 
-      // Fetch checklist items for all tasks
-      if (data && data.length > 0) {
-        await fetchChecklistItems(data.map((task) => task.id))
+        const data = await executeWithRetry(async () => {
+          const { data, error } = await supabase
+            .from("tasks")
+            .select(`
+          *,
+          projects (
+            name,
+            emoji
+          )
+        `)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+
+          if (error) throw error
+          return data
+        })
+
+        setTasks(data || [])
+        setDebugInfo(`Found ${data?.length || 0} tasks`)
+
+        // Fetch checklist items for all tasks
+        if (data && data.length > 0) {
+          await fetchChecklistItems(data.map((task) => task.id))
+        }
+
+        setLoading(false)
+        setDebugInfo("Dashboard loaded successfully!")
+      } catch (error: any) {
+        handleError(error, "Fetch Tasks")
+        setLoading(false)
       }
+    },
+    [executeWithRetry, handleError],
+  )
 
-      setLoading(false)
-      setDebugInfo("Dashboard loaded successfully!")
-    } catch (error: any) {
-      console.error("Error fetching tasks:", error)
-      setError(`Error fetching tasks: ${error.message}`)
-      setLoading(false)
-    }
-  }
+  const fetchChecklistItems = useCallback(
+    async (taskIds: string[]) => {
+      try {
+        const checklistData = await executeWithRetry(async () => {
+          const { data: checklistData, error } = await supabase
+            .from("checklist_items")
+            .select("*")
+            .in("task_id", taskIds)
+            .order("created_at", { ascending: true })
 
-  const fetchChecklistItems = async (taskIds: string[]) => {
-    try {
-      const { data: checklistData } = await supabase
-        .from("checklist_items")
-        .select("*")
-        .in("task_id", taskIds)
-        .order("created_at", { ascending: true })
+          if (error) throw error
+          return checklistData
+        })
 
-      if (checklistData) {
-        const groupedChecklist = checklistData.reduce(
-          (acc, item) => {
-            if (!acc[item.task_id]) {
-              acc[item.task_id] = []
-            }
-            acc[item.task_id].push(item)
-            return acc
-          },
-          {} as { [taskId: string]: ChecklistItem[] },
-        )
+        if (checklistData) {
+          const groupedChecklist = checklistData.reduce(
+            (acc, item) => {
+              if (!acc[item.task_id]) {
+                acc[item.task_id] = []
+              }
+              acc[item.task_id].push(item)
+              return acc
+            },
+            {} as { [taskId: string]: ChecklistItem[] },
+          )
 
-        setChecklistItems(groupedChecklist)
+          setChecklistItems(groupedChecklist)
+        }
+      } catch (error: any) {
+        // Don't fail the whole dashboard for checklist items
+        console.warn("Failed to fetch checklist items:", error)
       }
-    } catch (error: any) {
-      console.error("Error fetching checklist items:", error)
-      // Don't fail the whole dashboard for checklist items
-    }
-  }
+    },
+    [executeWithRetry],
+  )
 
-  const parseNaturalLanguage = (input: string) => {
+  const parseNaturalLanguage = useCallback((input: string) => {
     const text = input.toLowerCase()
 
     // Extract emoji (first emoji found)
@@ -300,7 +333,7 @@ export default function Dashboard() {
       text.includes("star") ||
       priority === "high" // Auto-mark high priority items as important
 
-    // Extract due date patterns
+    // Extract due date patterns with better error handling
     let dueDate = null
     const datePatterns = [
       /(?:due|by|before|until)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
@@ -315,30 +348,31 @@ export default function Dashboard() {
       const match = text.match(pattern)
       if (match) {
         const dateStr = match[1] || match[0]
-        if (dateStr === "today") {
-          dueDate = new Date().toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "tomorrow") {
-          const tomorrow = new Date()
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          dueDate = tomorrow.toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "this week") {
-          const endOfWeek = new Date()
-          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()))
-          dueDate = endOfWeek.toISOString().split("T")[0] + "T23:59"
-        } else if (dateStr === "next week") {
-          const nextWeek = new Date()
-          nextWeek.setDate(nextWeek.getDate() + (14 - nextWeek.getDay()))
-          dueDate = nextWeek.toISOString().split("T")[0] + "T23:59"
-        } else {
-          // Try to parse the date
-          try {
+        try {
+          if (dateStr === "today") {
+            dueDate = new Date().toISOString().split("T")[0] + "T23:59"
+          } else if (dateStr === "tomorrow") {
+            const tomorrow = new Date()
+            tomorrow.setDate(tomorrow.getDate() + 1)
+            dueDate = tomorrow.toISOString().split("T")[0] + "T23:59"
+          } else if (dateStr === "this week") {
+            const endOfWeek = new Date()
+            endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()))
+            dueDate = endOfWeek.toISOString().split("T")[0] + "T23:59"
+          } else if (dateStr === "next week") {
+            const nextWeek = new Date()
+            nextWeek.setDate(nextWeek.getDate() + (14 - nextWeek.getDay()))
+            dueDate = nextWeek.toISOString().split("T")[0] + "T23:59"
+          } else {
+            // Try to parse the date with better validation
             const parsed = new Date(dateStr)
-            if (!isNaN(parsed.getTime())) {
+            if (!isNaN(parsed.getTime()) && parsed > new Date()) {
               dueDate = parsed.toISOString().split("T")[0] + "T23:59"
             }
-          } catch (e) {
-            // Ignore invalid dates
           }
+        } catch (e) {
+          // Ignore invalid dates
+          console.warn("Failed to parse date:", dateStr, e)
         }
         break
       }
@@ -368,6 +402,12 @@ export default function Dashboard() {
       .replace(/\s+/g, " ")
       .trim()
 
+    // Sanitize inputs
+    title = sanitizeInput(title)
+    if (description) {
+      description = sanitizeInput(description)
+    }
+
     return {
       title: title || "New Task",
       description,
@@ -376,139 +416,176 @@ export default function Dashboard() {
       isImportant,
       dueDate,
     }
-  }
+  }, [])
 
-  const createTaskFromNaturalInput = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!naturalInput.trim() || !selectedProject) return
+  const createTaskFromNaturalInput = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!naturalInput.trim() || !selectedProject) return
 
-    setIsProcessing(true)
-    try {
-      const parsed = parseNaturalLanguage(naturalInput)
+      // Clear previous errors
+      clearError()
 
-      const taskData = {
-        title: parsed.title,
-        description: parsed.description,
-        emoji: parsed.emoji,
-        user_id: user.id,
-        project_id: selectedProject,
-        status: "todo" as TaskStatus, // Ensure we use the correct type
-        priority: parsed.priority,
-        is_important: parsed.isImportant,
-        due_date: parsed.dueDate,
-      }
+      setIsProcessing(true)
+      try {
+        const parsed = parseNaturalLanguage(naturalInput)
 
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert([taskData])
-        .select(`
-        *,
-        projects (
-          name,
-          emoji
-        )
-      `)
-
-      if (error) throw error
-
-      if (data) {
-        setTasks([data[0], ...tasks])
-        setNaturalInput("")
-        setParsedPreview(null)
-      }
-    } catch (error: any) {
-      setError(`Failed to forge your task in the darkness: ${getHumanReadableError(error.message)}`)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const updateTaskStatus = async (taskId: string, newStatus: string) => {
-    try {
-      // Validate the status value
-      if (!VALID_STATUSES.includes(newStatus as TaskStatus)) {
-        console.error("Invalid status:", newStatus)
-        setError(`Invalid task status: ${newStatus}`)
-        return
-      }
-
-      const updateData: any = { status: newStatus }
-
-      // If marking as done, set completed_at
-      if (newStatus === "done") {
-        updateData.completed_at = new Date().toISOString()
-      } else {
-        // If changing from done to another status, clear completed_at
-        updateData.completed_at = null
-      }
-
-      console.log("Updating task:", taskId, "with data:", updateData)
-
-      const { data, error } = await supabase.from("tasks").update(updateData).eq("id", taskId).select()
-
-      if (error) {
-        console.error("Database update error:", error)
-        throw error
-      }
-
-      console.log("Database update successful:", data)
-
-      // Update local state with the returned data
-      if (data && data.length > 0) {
-        const updatedTask = data[0]
-        setTasks((prevTasks) =>
-          prevTasks.map((task) =>
-            task.id === taskId ? { ...task, status: updatedTask.status, completed_at: updatedTask.completed_at } : task,
-          ),
-        )
-      } else {
-        // Fallback: update local state manually if no data returned
-        setTasks((prevTasks) =>
-          prevTasks.map((task) =>
-            task.id === taskId
-              ? { ...task, status: newStatus as Task["status"], completed_at: updateData.completed_at }
-              : task,
-          ),
-        )
-      }
-
-      console.log("Local state updated successfully")
-
-      // Clear any previous errors
-      setError("")
-    } catch (error: any) {
-      console.error("Error updating task status:", error)
-      setError(`The task refuses to change its fate: ${getHumanReadableError(error.message)}`)
-    }
-  }
-
-  const toggleChecklistItem = async (itemId: string, isCompleted: boolean) => {
-    try {
-      const { error } = await supabase.from("checklist_items").update({ is_completed: isCompleted }).eq("id", itemId)
-
-      if (error) throw error
-
-      // Update local state
-      setChecklistItems((prev) => {
-        const updated = { ...prev }
-        Object.keys(updated).forEach((taskId) => {
-          updated[taskId] = updated[taskId].map((item) =>
-            item.id === itemId ? { ...item, is_completed: isCompleted } : item,
-          )
+        // Validate input
+        const validation = validateTaskInput({
+          title: parsed.title,
+          description: parsed.description,
+          priority: parsed.priority,
+          dueDate: parsed.dueDate,
         })
-        return updated
-      })
-    } catch (error: any) {
-      setError(error.message)
+
+        if (!validation.isValid) {
+          setValidationErrors(validation.errors)
+          return
+        }
+
+        const taskData = {
+          title: parsed.title,
+          description: parsed.description,
+          emoji: parsed.emoji,
+          user_id: user.id,
+          project_id: selectedProject,
+          status: "todo" as TaskStatus,
+          priority: parsed.priority,
+          is_important: parsed.isImportant,
+          due_date: parsed.dueDate,
+        }
+
+        const data = await executeWithRetry(async () => {
+          const { data, error } = await supabase
+            .from("tasks")
+            .insert([taskData])
+            .select(`
+          *,
+          projects (
+            name,
+            emoji
+          )
+        `)
+
+          if (error) throw error
+          return data
+        })
+
+        if (data) {
+          setTasks([data[0], ...tasks])
+          setNaturalInput("")
+          setParsedPreview(null)
+          setValidationErrors([])
+        }
+      } catch (error: any) {
+        handleError(error, "Create Task")
+      } finally {
+        setIsProcessing(false)
+      }
+    },
+    [naturalInput, selectedProject, user, tasks, parseNaturalLanguage, executeWithRetry, handleError, clearError],
+  )
+
+  const updateTaskStatus = useCallback(
+    async (taskId: string, newStatus: string) => {
+      try {
+        // Clear previous errors
+        clearError()
+
+        // Validate the status value
+        if (!VALID_STATUSES.includes(newStatus as TaskStatus)) {
+          throw new Error(`Invalid task status: ${newStatus}`)
+        }
+
+        const updateData: any = { status: newStatus }
+
+        // If marking as done, set completed_at
+        if (newStatus === "done") {
+          updateData.completed_at = new Date().toISOString()
+        } else {
+          // If changing from done to another status, clear completed_at
+          updateData.completed_at = null
+        }
+
+        console.log("Updating task:", taskId, "with data:", updateData)
+
+        const data = await executeWithRetry(async () => {
+          const { data, error } = await supabase.from("tasks").update(updateData).eq("id", taskId).select()
+
+          if (error) throw error
+          return data
+        })
+
+        console.log("Database update successful:", data)
+
+        // Update local state with the returned data
+        if (data && data.length > 0) {
+          const updatedTask = data[0]
+          setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task.id === taskId
+                ? { ...task, status: updatedTask.status, completed_at: updatedTask.completed_at }
+                : task,
+            ),
+          )
+        } else {
+          // Fallback: update local state manually if no data returned
+          setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task.id === taskId
+                ? { ...task, status: newStatus as Task["status"], completed_at: updateData.completed_at }
+                : task,
+            ),
+          )
+        }
+
+        console.log("Local state updated successfully")
+      } catch (error: any) {
+        handleError(error, "Update Task Status")
+      }
+    },
+    [executeWithRetry, handleError, clearError],
+  )
+
+  const toggleChecklistItem = useCallback(
+    async (itemId: string, isCompleted: boolean) => {
+      try {
+        await executeWithRetry(async () => {
+          const { error } = await supabase
+            .from("checklist_items")
+            .update({ is_completed: isCompleted })
+            .eq("id", itemId)
+
+          if (error) throw error
+        })
+
+        // Update local state
+        setChecklistItems((prev) => {
+          const updated = { ...prev }
+          Object.keys(updated).forEach((taskId) => {
+            updated[taskId] = updated[taskId].map((item) =>
+              item.id === itemId ? { ...item, is_completed: isCompleted } : item,
+            )
+          })
+          return updated
+        })
+      } catch (error: any) {
+        handleError(error, "Toggle Checklist Item")
+      }
+    },
+    [executeWithRetry, handleError],
+  )
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      await supabase.auth.signOut()
+      router.replace("/sign-in")
+    } catch (error) {
+      handleError(error, "Sign Out")
     }
-  }
+  }, [router, handleError])
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push("/sign-in")
-  }
-
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = useCallback((status: string) => {
     switch (status) {
       case "done":
         return <CheckCircle className="h-4 w-4 text-green-400" />
@@ -517,9 +594,9 @@ export default function Dashboard() {
       default:
         return <AlertCircle className="h-4 w-4 text-red-400" />
     }
-  }
+  }, [])
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case "done":
         return "bg-green-900/20 text-green-400 border-green-900/50"
@@ -528,9 +605,9 @@ export default function Dashboard() {
       default:
         return "bg-red-900/20 text-red-400 border-red-900/50"
     }
-  }
+  }, [])
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = useCallback((priority: string) => {
     switch (priority) {
       case "high":
         return "bg-red-900/20 text-red-400 border-red-900/50"
@@ -539,7 +616,7 @@ export default function Dashboard() {
       default:
         return "bg-gray-900/20 text-gray-400 border-gray-700"
     }
-  }
+  }, [])
 
   if (loading) {
     return (
@@ -557,10 +634,16 @@ export default function Dashboard() {
             <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
           </div>
           {debugInfo && <div className="text-gray-500 text-sm max-w-md">{debugInfo}</div>}
-          {error && (
+          {hasError && (
             <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
               <AlertDescription className="text-red-400">{error}</AlertDescription>
             </Alert>
+          )}
+          {isRetrying && (
+            <div className="mt-2 text-yellow-400 text-sm flex items-center justify-center">
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              Retrying... (Attempt {retryCount})
+            </div>
           )}
         </div>
       </div>
@@ -581,7 +664,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -591,9 +674,27 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {error && (
+        {hasError && (
           <Alert className="mb-6 border-red-900/50 bg-red-950/20">
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
+            <AlertDescription className="text-red-400 flex items-center justify-between">
+              {error}
+              <Button variant="ghost" size="sm" onClick={clearError} className="text-red-400 hover:text-red-300">
+                ✕
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {validationErrors.length > 0 && (
+          <Alert className="mb-6 border-yellow-900/50 bg-yellow-950/20">
+            <AlertDescription className="text-yellow-400">
+              <div className="font-medium mb-2">Please fix the following issues:</div>
+              <ul className="list-disc list-inside space-y-1">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
           </Alert>
         )}
 
@@ -623,6 +724,7 @@ export default function Dashboard() {
                     className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
                     placeholder="🔥 Fix the login bug!!! due tomorrow - users can't sign in with Google authentication"
                     rows={4}
+                    maxLength={1000}
                   />
 
                   {/* Real-time parsing preview */}
@@ -715,7 +817,7 @@ export default function Dashboard() {
                   <Button
                     type="submit"
                     className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center"
-                    disabled={isProcessing || !selectedProject || !naturalInput.trim()}
+                    disabled={isProcessing || !selectedProject || !naturalInput.trim() || validationErrors.length > 0}
                   >
                     {isProcessing ? (
                       <>
@@ -741,11 +843,11 @@ export default function Dashboard() {
           <div>
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">Active Tasks</h2>
-              <p className="text-gray-400">Tasks that need your attention</p>
+              <p className="text-gray-400">Tasks that need your attention ({activeTasks.length})</p>
             </div>
 
             <div className="space-y-4">
-              {tasks.filter((task) => task.status !== "done").length === 0 ? (
+              {activeTasks.length === 0 ? (
                 <Card className="bg-black/40 border-gray-800">
                   <CardContent className="py-8 text-center">
                     <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
@@ -753,19 +855,121 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                tasks
-                  .filter((task) => task.status !== "done")
-                  .map((task) => (
-                    <Card key={task.id} className="task-card">
+                activeTasks.map((task) => (
+                  <Card key={task.id} className="task-card">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                            <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                            {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
+                          </div>
+                          {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+
+                          {/* Checklist Items */}
+                          {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                            <div className="mb-3 space-y-2">
+                              {checklistItems[task.id].map((item) => (
+                                <div key={item.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={item.is_completed}
+                                    onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                    className="border-gray-600"
+                                  />
+                                  <span
+                                    className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                  >
+                                    {item.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center space-x-2 mb-2">
+                            {getStatusIcon(task.status)}
+                            <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                            <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                          </div>
+
+                          {task.due_date && (
+                            <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
+                              <Calendar className="h-3 w-3 text-red-400" />
+                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                            <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-900 border-gray-700">
+                              <SelectItem value="todo" className="text-white">
+                                To Do
+                              </SelectItem>
+                              <SelectItem value="in_progress" className="text-white">
+                                In Progress
+                              </SelectItem>
+                              <SelectItem value="done" className="text-white">
+                                Done
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Created: {new Date(task.created_at).toLocaleDateString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Completed Tasks Section */}
+          <div>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Completed Tasks</h2>
+                <p className="text-gray-400">{completedTasks.length} tasks conquered by the darkness</p>
+              </div>
+              {completedTasks.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  {showCompleted ? "Hide" : "Show"} Completed
+                </Button>
+              )}
+            </div>
+
+            {showCompleted && (
+              <div className="space-y-4">
+                {completedTasks.length === 0 ? (
+                  <Card className="bg-black/40 border-gray-800">
+                    <CardContent className="py-8 text-center">
+                      <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400">No completed tasks yet. Get to work!</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  completedTasks.map((task) => (
+                    <Card key={task.id} className="task-card opacity-75 bg-green-950/10 border-green-900/30">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-2">
-                              {task.emoji && <span className="text-lg">{task.emoji}</span>}
-                              <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                              {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
+                              {task.emoji && <span className="text-lg opacity-60">{task.emoji}</span>}
+                              <h3 className="text-lg font-semibold text-white line-through opacity-75">{task.title}</h3>
+                              {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />}
+                              <CheckCircle className="h-4 w-4 text-green-400" />
                             </div>
-                            {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+                            {task.description && <p className="text-gray-400 mb-3 opacity-75">{task.description}</p>}
 
                             {/* Checklist Items */}
                             {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
@@ -788,13 +992,12 @@ export default function Dashboard() {
                             )}
 
                             <div className="flex items-center space-x-2 mb-2">
-                              {getStatusIcon(task.status)}
-                              <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                              <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                              <Badge className="bg-green-900/20 text-green-400 border-green-900/50">completed</Badge>
+                              <Badge className={`${getPriorityColor(task.priority)} opacity-60`}>{task.priority}</Badge>
                             </div>
 
                             {task.due_date && (
-                              <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
+                              <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-60">
                                 <Calendar className="h-3 w-3 text-red-400" />
                                 <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                               </div>
@@ -819,128 +1022,17 @@ export default function Dashboard() {
                             </Select>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 opacity-75">
                           Created: {new Date(task.created_at).toLocaleDateString()}
+                          {task.completed_at && (
+                            <span className="ml-4 text-green-400">
+                              ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
                   ))
-              )}
-            </div>
-          </div>
-
-          {/* Completed Tasks Section */}
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Completed Tasks</h2>
-                <p className="text-gray-400">
-                  {tasks.filter((task) => task.status === "done").length} tasks conquered by the darkness
-                </p>
-              </div>
-              {tasks.filter((task) => task.status === "done").length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                >
-                  {showCompleted ? "Hide" : "Show"} Completed
-                </Button>
-              )}
-            </div>
-
-            {showCompleted && (
-              <div className="space-y-4">
-                {tasks.filter((task) => task.status === "done").length === 0 ? (
-                  <Card className="bg-black/40 border-gray-800">
-                    <CardContent className="py-8 text-center">
-                      <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                      <p className="text-gray-400">No completed tasks yet. Get to work!</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  tasks
-                    .filter((task) => task.status === "done")
-                    .map((task) => (
-                      <Card key={task.id} className="task-card opacity-75 bg-green-950/10 border-green-900/30">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                {task.emoji && <span className="text-lg opacity-60">{task.emoji}</span>}
-                                <h3 className="text-lg font-semibold text-white line-through opacity-75">
-                                  {task.title}
-                                </h3>
-                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-60" />}
-                                <CheckCircle className="h-4 w-4 text-green-400" />
-                              </div>
-                              {task.description && <p className="text-gray-400 mb-3 opacity-75">{task.description}</p>}
-
-                              {/* Checklist Items */}
-                              {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
-                                <div className="mb-3 space-y-2">
-                                  {checklistItems[task.id].map((item) => (
-                                    <div key={item.id} className="flex items-center space-x-2">
-                                      <Checkbox
-                                        checked={item.is_completed}
-                                        onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
-                                        className="border-gray-600"
-                                      />
-                                      <span
-                                        className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
-                                      >
-                                        {item.text}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Badge className="bg-green-900/20 text-green-400 border-green-900/50">completed</Badge>
-                                <Badge className={`${getPriorityColor(task.priority)} opacity-60`}>
-                                  {task.priority}
-                                </Badge>
-                              </div>
-
-                              {task.due_date && (
-                                <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-60">
-                                  <Calendar className="h-3 w-3 text-red-400" />
-                                  <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                                <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-900 border-gray-700">
-                                  <SelectItem value="todo" className="text-white">
-                                    To Do
-                                  </SelectItem>
-                                  <SelectItem value="in_progress" className="text-white">
-                                    In Progress
-                                  </SelectItem>
-                                  <SelectItem value="done" className="text-white">
-                                    Done
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500 opacity-75">
-                            Created: {new Date(task.created_at).toLocaleDateString()}
-                            {task.completed_at && (
-                              <span className="ml-4 text-green-400">
-                                ✓ Completed: {new Date(task.completed_at).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
                 )}
               </div>
             )}

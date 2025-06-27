@@ -1,23 +1,18 @@
--- Alternative approach: Recreate the tasks table with proper constraints
--- Use this if the enum approach doesn't work
+-- Alternative approach: Convert enum to TEXT with CHECK constraint
+-- This is safer and more flexible
 
--- First, let's see the current table structure
-\d public.tasks;
+-- First, convert the column to TEXT
+ALTER TABLE tasks ALTER COLUMN status TYPE TEXT;
 
--- Drop the existing constraint if it exists
-ALTER TABLE public.tasks DROP CONSTRAINT IF EXISTS tasks_status_check;
+-- Drop the enum type if it exists
+DROP TYPE IF EXISTS task_status CASCADE;
 
--- Change the column type to TEXT and add a proper check constraint
-ALTER TABLE public.tasks ALTER COLUMN status TYPE TEXT;
-
--- Add the correct constraint
-ALTER TABLE public.tasks ADD CONSTRAINT tasks_status_check 
+-- Add a CHECK constraint to ensure valid values
+ALTER TABLE tasks ADD CONSTRAINT tasks_status_check 
 CHECK (status IN ('todo', 'in_progress', 'done'));
 
--- Update any existing invalid status values to 'todo'
-UPDATE public.tasks 
-SET status = 'todo' 
-WHERE status NOT IN ('todo', 'in_progress', 'done');
+-- Update any invalid statuses to 'todo'
+UPDATE tasks SET status = 'todo' WHERE status NOT IN ('todo', 'in_progress', 'done');
 
--- Verify the changes
-SELECT DISTINCT status FROM public.tasks;
+-- Add an index for better performance
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
