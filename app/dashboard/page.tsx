@@ -568,22 +568,37 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950">
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
+      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Skull className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+            <div className="relative">
+              <Skull className="h-8 w-8 text-red-500 animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+              <p className="text-xs text-gray-400">Embrace the productive darkness</p>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-400">Welcome, {user?.email}</span>
+            <div className="hidden md:flex items-center space-x-4 text-sm">
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-gray-400">Online</span>
+              </div>
+              <span className="text-gray-500">|</span>
+              <span className="text-gray-400">
+                {user?.email === "demo@todoapp.dev" ? "👑 Dark Overlord" : "🌙 Shadow Walker"}
+              </span>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent hover:border-red-500 transition-colors"
             >
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              Vanish
             </Button>
           </div>
         </div>
@@ -596,39 +611,74 @@ export default function Dashboard() {
           </Alert>
         )}
 
-        {/* Dark Welcome Message */}
         <div className="mb-8">
-          <Card className="bg-gradient-to-r from-black/80 via-red-950/20 to-black/80 border-red-900/30">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <Skull className="h-8 w-8 text-red-500 animate-pulse" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-1">
-                    Welcome to the shadows, {user?.email === "demo@todoapp.dev" ? "Dark Overlord" : "Shadow Walker"}
-                  </h2>
-                  <p className="text-gray-400">
+          <Card className="bg-gradient-to-r from-black/80 via-red-950/20 to-black/80 border-red-900/30 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 via-transparent to-red-900/10 animate-pulse"></div>
+            <CardContent className="p-6 relative">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Skull className="h-10 w-10 text-red-500 animate-bounce" />
+                  <div className="absolute -top-1 -right-1 text-xs">
+                    {user?.email === "demo@todoapp.dev" ? "👑" : "🌙"}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-white to-red-200 bg-clip-text text-transparent">
                     {user?.email === "demo@todoapp.dev"
-                      ? "Your dark empire awaits your command. The demo realm bends to your will..."
-                      : "Your productivity lurks in the darkness. Command your tasks from the void..."}
+                      ? "Greetings, Supreme Dark Overlord! 👑"
+                      : "Welcome back, Shadow Walker! 🌙"}
+                  </h2>
+                  <p className="text-gray-400 text-lg">
+                    {user?.email === "demo@todoapp.dev"
+                      ? "Your demo realm trembles with anticipation... The minions await your dark commands! 🦇"
+                      : "The void whispers your name... Your tasks lurk in the shadows, ready to be conquered! ⚡"}
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center space-x-6 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-gray-300">{projects.length} Dark Projects</span>
+
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-black/40 rounded-lg p-4 border border-red-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-400">{projects.length}</p>
+                      <p className="text-sm text-gray-400">Dark Projects</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                  <span className="text-gray-300">{tasks.length} Shadow Tasks</span>
+
+                <div className="bg-black/40 rounded-lg p-4 border border-yellow-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-yellow-400">{tasks.length}</p>
+                      <p className="text-sm text-gray-400">Shadow Tasks</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-gray-300">
-                    {tasks.filter((task) => task.status === "done").length} Conquered
-                  </span>
+
+                <div className="bg-black/40 rounded-lg p-4 border border-green-900/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-400">
+                        {tasks.filter((task) => task.status === "done").length}
+                      </p>
+                      <p className="text-sm text-gray-400">Souls Conquered</p>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {user?.email === "demo@todoapp.dev" && (
+                <div className="mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                  <p className="text-purple-300 text-sm flex items-center">
+                    <Zap className="h-4 w-4 mr-2" />
+                    <strong>Demo Realm Activated:</strong> You wield unlimited power here, Dark Overlord! Create,
+                    destroy, and command at will! 🔮
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
