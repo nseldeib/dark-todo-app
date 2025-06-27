@@ -596,6 +596,43 @@ export default function Dashboard() {
           </Alert>
         )}
 
+        {/* Dark Welcome Message */}
+        <div className="mb-8">
+          <Card className="bg-gradient-to-r from-black/80 via-red-950/20 to-black/80 border-red-900/30">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <Skull className="h-8 w-8 text-red-500 animate-pulse" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    Welcome to the shadows, {user?.email === "demo@todoapp.dev" ? "Dark Overlord" : "Shadow Walker"}
+                  </h2>
+                  <p className="text-gray-400">
+                    {user?.email === "demo@todoapp.dev"
+                      ? "Your dark empire awaits your command. The demo realm bends to your will..."
+                      : "Your productivity lurks in the darkness. Command your tasks from the void..."}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center space-x-6 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-300">{projects.length} Dark Projects</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-300">{tasks.length} Shadow Tasks</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-gray-300">
+                    {tasks.filter((task) => task.status === "done").length} Conquered
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Smart Task Creation - Now at the top */}
         <div className="mb-8">
           <Card className="bg-black/60 border-red-900/30 glow-effect">
