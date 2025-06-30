@@ -921,7 +921,6 @@ export default function Dashboard() {
                             </Badge>
                             <Badge className={`${getPriorityColor(task.priority)} text-xs`}>{task.priority}</Badge>
                           </div>
-                          )}
                           {/* Due Date */}
                           {task.due_date && (
                             <div className="flex items-center space-x-1 text-xs text-gray-400">
