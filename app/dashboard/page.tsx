@@ -268,26 +268,41 @@ export default function Dashboard() {
       )
       .trim()
 
-    // Detect priority
+    // Detect priority using exclamation shortcuts FIRST (higher priority than text detection)
     let priority = "medium"
-    if (
-      text.includes("urgent") ||
-      text.includes("asap") ||
-      text.includes("high priority") ||
-      text.includes("important") ||
-      text.includes("critical") ||
-      text.includes("🔥") ||
-      text.includes("emergency")
-    ) {
-      priority = "high"
-    } else if (
-      text.includes("low priority") ||
-      text.includes("when i have time") ||
-      text.includes("someday") ||
-      text.includes("maybe") ||
-      text.includes("later")
-    ) {
-      priority = "low"
+
+    // Check for exclamation mark shortcuts (! = low, !! = medium, !!! = high)
+    const exclamationMatch = input.match(/!{1,3}(?!\w)/g)
+    if (exclamationMatch) {
+      const maxExclamations = Math.max(...exclamationMatch.map((match) => match.length))
+      if (maxExclamations === 1) {
+        priority = "low"
+      } else if (maxExclamations === 2) {
+        priority = "medium"
+      } else if (maxExclamations >= 3) {
+        priority = "high"
+      }
+    } else {
+      // Fallback to text-based priority detection
+      if (
+        text.includes("urgent") ||
+        text.includes("asap") ||
+        text.includes("high priority") ||
+        text.includes("important") ||
+        text.includes("critical") ||
+        text.includes("🔥") ||
+        text.includes("emergency")
+      ) {
+        priority = "high"
+      } else if (
+        text.includes("low priority") ||
+        text.includes("when i have time") ||
+        text.includes("someday") ||
+        text.includes("maybe") ||
+        text.includes("later")
+      ) {
+        priority = "low"
+      }
     }
 
     // Detect importance
@@ -358,11 +373,12 @@ export default function Dashboard() {
       }
     }
 
-    // Clean up title (remove priority/date keywords)
+    // Clean up title (remove priority/date keywords and exclamation shortcuts)
     title = title
       .replace(/\b(urgent|asap|high priority|low priority|important|critical|must do|priority)\b/gi, "")
       .replace(/\b(due|by|before|until)\s+[\w/-]+/gi, "")
       .replace(/\b(today|tomorrow|this week|next week)\b/gi, "")
+      .replace(/!{1,3}(?!\w)/g, "") // Remove exclamation shortcuts
       .replace(/\s+/g, " ")
       .trim()
 
@@ -544,13 +560,22 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="text-center">
-          <Skull className="h-12 w-12 text-red-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-lg mb-2">Loading your dark realm...</div>
-          {debugInfo && <div className="text-gray-400 text-sm">{debugInfo}</div>}
+          <div className="relative">
+            <Skull className="h-16 w-16 text-red-500 mx-auto mb-6 animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Summoning Your Dark Empire...</h2>
+          <p className="text-gray-400 mb-4">Awakening the shadows of productivity</p>
+          <div className="flex justify-center space-x-1 mb-4">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+          </div>
+          {debugInfo && <div className="text-gray-500 text-sm max-w-md">{debugInfo}</div>}
           {error && (
-            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md">
+            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
               <AlertDescription className="text-red-400">{error}</AlertDescription>
             </Alert>
           )}
@@ -589,226 +614,135 @@ export default function Dashboard() {
           </Alert>
         )}
 
-        {/* Enhanced Smart Task Creation */}
+        {/* Smart Task Creation - Now at the top */}
         <div className="mb-8">
-          <Card className="bg-gradient-to-br from-gray-900/90 to-black/90 border-red-900/30 shadow-2xl backdrop-blur-sm">
-            <CardHeader className="pb-4 border-b border-gray-800/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-red-500/20 rounded-lg">
-                    <Brain className="h-6 w-6 text-red-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl text-white flex items-center">
-                      Smart Task Creation
-                      <Zap className="h-4 w-4 ml-2 text-yellow-400 animate-pulse" />
-                    </CardTitle>
-                    <CardDescription className="text-gray-400 mt-1">
-                      AI-powered task parsing with natural language understanding
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowProjectForm(!showProjectForm)}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white transition-all"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Project
-                </Button>
-              </div>
+          <Card className="bg-black/60 border-red-900/30 glow-effect">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-white flex items-center">
+                <Brain className="h-5 w-5 mr-2 text-red-500" />
+                Smart Task Creation
+                <Zap className="h-4 w-4 ml-2 text-yellow-400" />
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Just type naturally - I'll understand the context and extract all the details
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-              <form onSubmit={createTaskFromNaturalInput} className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="natural-input" className="text-gray-300 font-medium">
-                      Describe your task naturally
-                    </Label>
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-400 rounded-full mr-1 animate-pulse"></div>
-                        AI Active
-                      </div>
-                    </div>
-                  </div>
+            <CardContent>
+              <form onSubmit={createTaskFromNaturalInput} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="natural-input" className="text-gray-300">
+                    What needs to be done?
+                  </Label>
+                  <Textarea
+                    id="natural-input"
+                    value={naturalInput}
+                    onChange={(e) => setNaturalInput(e.target.value)}
+                    className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
+                    placeholder="🔥 Fix the login bug!!! due tomorrow - users can't sign in with Google authentication"
+                    rows={4}
+                  />
 
-                  <div className="relative">
-                    <Textarea
-                      id="natural-input"
-                      value={naturalInput}
-                      onChange={(e) => setNaturalInput(e.target.value)}
-                      className="bg-gray-800/50 border-gray-600 text-white focus:border-red-400 focus:ring-2 focus:ring-red-400/20 min-h-[120px] text-lg placeholder:text-gray-500 transition-all duration-200 resize-none"
-                      placeholder="🔥 Fix the critical login bug by Friday - users can't authenticate with Google OAuth, affecting 50% of our user base"
-                      rows={5}
-                    />
-                    <div className="absolute bottom-3 right-3 flex items-center space-x-2">
-                      {naturalInput.trim() && (
-                        <div className="flex items-center space-x-1 text-xs text-gray-400 bg-gray-900/80 px-2 py-1 rounded">
-                          <Brain className="h-3 w-3 text-green-400" />
-                          <span>Analyzing...</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Enhanced Real-time parsing preview */}
+                  {/* Real-time parsing preview */}
                   {parsedPreview && (
-                    <div className="mt-4 p-5 bg-gradient-to-r from-gray-800/60 to-gray-900/60 border border-gray-600/50 rounded-xl backdrop-blur-sm">
-                      <div className="flex items-center mb-4">
-                        <div className="p-1.5 bg-green-500/20 rounded-lg mr-3">
-                          <Brain className="h-4 w-4 text-green-400" />
-                        </div>
-                        <span className="text-green-400 font-medium">AI Analysis Complete</span>
-                        <div className="ml-auto flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse delay-75"></div>
-                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse delay-150"></div>
-                        </div>
+                    <div className="mt-3 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                      <div className="flex items-center mb-2">
+                        <Brain className="h-4 w-4 text-green-400 mr-2" />
+                        <span className="text-green-400 text-sm font-medium">AI Parsed Preview:</span>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <div className="p-3 bg-gray-900/50 rounded-lg">
-                            <span className="text-gray-400 text-sm font-medium block mb-2">Task Title</span>
-                            <div className="text-white flex items-center text-lg">
-                              {parsedPreview.emoji && <span className="mr-3 text-2xl">{parsedPreview.emoji}</span>}
-                              <span className="flex-1">{parsedPreview.title}</span>
-                              {parsedPreview.isImportant && (
-                                <Star className="h-4 w-4 ml-2 text-red-400 fill-current animate-pulse" />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex space-x-3">
-                            <div className="flex-1 p-3 bg-gray-900/50 rounded-lg">
-                              <span className="text-gray-400 text-sm font-medium block mb-2">Priority</span>
-                              <Badge className={`${getPriorityColor(parsedPreview.priority)} text-sm px-3 py-1`}>
-                                {parsedPreview.priority.toUpperCase()}
-                              </Badge>
-                            </div>
-
-                            {parsedPreview.isImportant && (
-                              <div className="flex-1 p-3 bg-gray-900/50 rounded-lg">
-                                <span className="text-gray-400 text-sm font-medium block mb-2">Importance</span>
-                                <Badge className="bg-red-900/30 text-red-400 border-red-700 text-sm px-3 py-1">
-                                  <Star className="h-3 w-3 mr-1 fill-current" />
-                                  Important
-                                </Badge>
-                              </div>
-                            )}
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Title:</span>
+                          <div className="text-white flex items-center">
+                            {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
+                            {parsedPreview.title}
+                            {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
                           </div>
                         </div>
-
-                        <div className="space-y-3">
-                          {parsedPreview.description && (
-                            <div className="p-3 bg-gray-900/50 rounded-lg">
-                              <span className="text-gray-400 text-sm font-medium block mb-2">Description</span>
-                              <div className="text-gray-300 text-sm leading-relaxed">{parsedPreview.description}</div>
-                            </div>
-                          )}
-
-                          {parsedPreview.dueDate && (
-                            <div className="p-3 bg-gray-900/50 rounded-lg">
-                              <span className="text-gray-400 text-sm font-medium block mb-2">Due Date</span>
-                              <div className="text-gray-300 flex items-center">
-                                <Calendar className="h-4 w-4 mr-2 text-red-400" />
-                                <span className="font-medium">
-                                  {new Date(parsedPreview.dueDate).toLocaleDateString("en-US", {
-                                    weekday: "short",
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                        <div>
+                          <span className="text-gray-400">Priority:</span>
+                          <Badge className={`ml-2 ${getPriorityColor(parsedPreview.priority)}`}>
+                            {parsedPreview.priority}
+                          </Badge>
                         </div>
+                        {parsedPreview.description && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">Description:</span>
+                            <div className="text-gray-300">{parsedPreview.description}</div>
+                          </div>
+                        )}
+                        {parsedPreview.dueDate && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">Due Date:</span>
+                            <div className="text-gray-300 flex items-center">
+                              <Calendar className="h-3 w-3 mr-1 text-red-400" />
+                              {new Date(parsedPreview.dueDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Enhanced examples section */}
-                  <div className="mt-4 p-4 bg-gray-900/30 border border-gray-700/50 rounded-lg">
-                    <div className="flex items-center mb-3">
-                      <Lightbulb className="h-4 w-4 mr-2 text-yellow-400" />
-                      <span className="text-yellow-400 font-medium text-sm">Smart Detection Examples</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                          <span className="text-gray-400">
-                            <span className="text-blue-400 font-medium">Emojis:</span> 🔥 📝 ⚡ 🎯 🚀 💡
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
-                          <span className="text-gray-400">
-                            <span className="text-red-400 font-medium">Priority:</span> "urgent", "critical", "low
-                            priority"
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                          <span className="text-gray-400">
-                            <span className="text-green-400 font-medium">Dates:</span> "tomorrow", "Friday",
-                            "12/25/2024"
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full mr-2"></div>
-                          <span className="text-gray-400">
-                            <span className="text-purple-400 font-medium">Details:</span> Use " - " for descriptions
-                          </span>
-                        </div>
-                      </div>
+                  <div className="text-xs text-gray-500 space-y-1 mt-3">
+                    <p className="flex items-center">
+                      <Brain className="h-3 w-3 mr-1 text-green-400" />
+                      <strong>Smart Detection Examples:</strong>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-4">
+                      <p>
+                        • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 automatically detected
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Priority:</span> ! (low) !! (medium) !!! (high)
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday", "12/25/2024"
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Details:</span> Use " - " to separate title from description
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Keywords:</span> "urgent", "important", "low priority"
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Quick example:</span> "🔥 Fix bug!!! due tomorrow"
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-800/50">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor="project-select" className="text-gray-300 font-medium">
-                        Project:
-                      </Label>
-                      <Select value={selectedProject} onValueChange={setSelectedProject}>
-                        <SelectTrigger className="w-56 bg-gray-800/50 border-gray-600 text-white hover:bg-gray-800 transition-colors">
-                          <SelectValue placeholder="Choose a project" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-700">
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id} className="text-white hover:bg-gray-800">
-                              <div className="flex items-center">
-                                <span className="mr-2 text-lg">{project.emoji}</span>
-                                <span>{project.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="project-select" className="text-gray-300 text-sm">
+                      Project:
+                    </Label>
+                    <Select value={selectedProject} onValueChange={setSelectedProject}>
+                      <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700 text-white">
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700">
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id} className="text-white">
+                            {project.emoji} {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
                   <Button
                     type="submit"
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-2.5 font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                    className="bg-red-600 hover:bg-red-700 text-white px-8 flex items-center"
                     disabled={isProcessing || !selectedProject || !naturalInput.trim()}
                   >
                     {isProcessing ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        <span>Forging Task...</span>
+                        Creating...
                       </>
                     ) : (
                       <>
                         <Zap className="h-4 w-4 mr-2" />
-                        <span>Create Task</span>
+                        Create Task
                       </>
                     )}
                   </Button>
@@ -817,134 +751,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Enhanced Project Creation Form */}
-        {showProjectForm && (
-          <div className="mb-8">
-            <Card className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-blue-900/30 shadow-xl backdrop-blur-sm">
-              <CardHeader className="pb-4 border-b border-blue-800/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-500/20 rounded-lg">
-                      <FolderPlus className="h-6 w-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl text-white">Create New Project</CardTitle>
-                      <CardDescription className="text-gray-400 mt-1">
-                        Organize your tasks into focused projects
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowProjectForm(false)}
-                    className="text-gray-400 hover:text-white hover:bg-gray-800"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <form onSubmit={createProject} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="project-name" className="text-gray-300 font-medium">
-                          Project Name *
-                        </Label>
-                        <Input
-                          id="project-name"
-                          value={newProject.name}
-                          onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                          className="mt-2 bg-gray-800/50 border-gray-600 text-white focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all"
-                          placeholder="Enter project name..."
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="project-emoji" className="text-gray-300 font-medium">
-                          Project Icon
-                        </Label>
-                        <div className="mt-2 flex items-center space-x-3">
-                          <Input
-                            id="project-emoji"
-                            value={newProject.emoji}
-                            onChange={(e) => setNewProject({ ...newProject, emoji: e.target.value })}
-                            className="w-20 bg-gray-800/50 border-gray-600 text-white text-center text-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                            placeholder="📁"
-                            maxLength={2}
-                          />
-                          <div className="flex flex-wrap gap-2">
-                            {["📁", "💼", "🎯", "🚀", "💡", "⚡", "🔥", "🎨"].map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => setNewProject({ ...newProject, emoji })}
-                                className="p-2 text-xl hover:bg-gray-700 rounded-lg transition-colors"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="project-description" className="text-gray-300 font-medium">
-                        Description
-                      </Label>
-                      <Textarea
-                        id="project-description"
-                        value={newProject.description}
-                        onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                        className="mt-2 bg-gray-800/50 border-gray-600 text-white focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 min-h-[120px] resize-none transition-all"
-                        placeholder="Describe your project goals and scope..."
-                        rows={5}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-blue-800/30">
-                    <div className="text-sm text-gray-400">Projects help you organize and categorize your tasks</div>
-                    <div className="flex items-center space-x-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setShowProjectForm(false)
-                          setNewProject({ name: "", description: "", emoji: "📁" })
-                        }}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                        disabled={isCreatingProject || !newProject.name.trim()}
-                      >
-                        {isCreatingProject ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <FolderPlus className="h-4 w-4 mr-2" />
-                            Create Project
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Tasks List */}
         <div>
@@ -973,7 +779,6 @@ export default function Dashboard() {
                           {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
                         {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
                         {/* Checklist Items */}
                         {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                           <div className="mb-3 space-y-2">
