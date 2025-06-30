@@ -670,6 +670,95 @@ export default function Dashboard() {
           </Alert>
         )}
 
+        {/* New Project Form - Outside of task creation form */}
+        {showProjectForm && (
+          <div className="mb-6 sm:mb-8">
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-white text-lg flex items-center">
+                  <FolderPlus className="h-5 w-5 mr-2 text-green-400" />
+                  Create New Project
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={createProject} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="project-name" className="text-gray-300 text-sm">
+                        Project Name
+                      </Label>
+                      <Input
+                        id="project-name"
+                        value={newProject.name}
+                        onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1"
+                        placeholder="Enter project name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="project-emoji" className="text-gray-300 text-sm">
+                        Emoji
+                      </Label>
+                      <Input
+                        id="project-emoji"
+                        value={newProject.emoji}
+                        onChange={(e) => setNewProject({ ...newProject, emoji: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 text-center"
+                        placeholder="📁"
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="project-description" className="text-gray-300 text-sm">
+                      Description (Optional)
+                    </Label>
+                    <Textarea
+                      id="project-description"
+                      value={newProject.description}
+                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                      className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 resize-none"
+                      placeholder="Brief description of this project"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      type="submit"
+                      className="bg-green-600 hover:bg-green-700 text-white flex items-center"
+                      disabled={isCreatingProject || !newProject.name.trim()}
+                    >
+                      {isCreatingProject ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <FolderPlus className="h-4 w-4 mr-2" />
+                          Create Project
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowProjectForm(false)
+                        setNewProject({ name: "", description: "", emoji: "📁" })
+                      }}
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Mobile-Optimized Smart Task Creation */}
         <div className="mb-6 sm:mb-8">
           <Card className="bg-black/60 border-red-900/30 glow-effect">
@@ -820,12 +909,11 @@ export default function Dashboard() {
                       Project:
                     </Label>
                     <Select
-                      value={showProjectForm ? "new-project" : selectedProject}
+                      value={selectedProject}
                       onValueChange={(value) => {
                         if (value === "new-project") {
                           setShowProjectForm(true)
                         } else {
-                          setShowProjectForm(false)
                           setSelectedProject(value)
                         }
                       }}
@@ -845,93 +933,6 @@ export default function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* New Project Form */}
-                  {showProjectForm && (
-                    <Card className="bg-gray-800/50 border-gray-700 mt-4">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-white text-lg flex items-center">
-                          <FolderPlus className="h-5 w-5 mr-2 text-green-400" />
-                          Create New Project
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <form onSubmit={createProject} className="space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="sm:col-span-2">
-                              <Label htmlFor="project-name" className="text-gray-300 text-sm">
-                                Project Name
-                              </Label>
-                              <Input
-                                id="project-name"
-                                value={newProject.name}
-                                onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                                className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1"
-                                placeholder="Enter project name"
-                                required
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="project-emoji" className="text-gray-300 text-sm">
-                                Emoji
-                              </Label>
-                              <Input
-                                id="project-emoji"
-                                value={newProject.emoji}
-                                onChange={(e) => setNewProject({ ...newProject, emoji: e.target.value })}
-                                className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 text-center"
-                                placeholder="📁"
-                                maxLength={2}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="project-description" className="text-gray-300 text-sm">
-                              Description (Optional)
-                            </Label>
-                            <Textarea
-                              id="project-description"
-                              value={newProject.description}
-                              onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                              className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 resize-none"
-                              placeholder="Brief description of this project"
-                              rows={2}
-                            />
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Button
-                              type="submit"
-                              className="bg-green-600 hover:bg-green-700 text-white flex items-center"
-                              disabled={isCreatingProject || !newProject.name.trim()}
-                            >
-                              {isCreatingProject ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  Creating...
-                                </>
-                              ) : (
-                                <>
-                                  <FolderPlus className="h-4 w-4 mr-2" />
-                                  Create Project
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setShowProjectForm(false)
-                                setNewProject({ name: "", description: "", emoji: "📁" })
-                              }}
-                              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  )}
                   <Button
                     type="submit"
                     className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-2 sm:py-3 flex items-center justify-center w-full sm:w-auto text-sm sm:text-base"
