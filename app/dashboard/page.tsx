@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
+import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain, Plus, X, FolderPlus, Lightbulb } from "lucide-react"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -27,6 +27,13 @@ export default function Dashboard() {
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [newProject, setNewProject] = useState({
+    name: "",
+    description: "",
+    emoji: "📁",
+  })
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -485,15 +492,59 @@ export default function Dashboard() {
     }
   }
 
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProject.name.trim() || !user) return
+
+    setIsCreatingProject(true)
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProject.name.trim(),
+          description: newProject.description.trim() || null,
+          emoji: newProject.emoji || "📁",
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setProjects([data, ...projects])
+        setSelectedProject(data.id)
+        setNewProject({ name: "", description: "", emoji: "📁" })
+        setShowProjectForm(false)
+
+        // Fetch tasks for the new project (will be empty initially)
+        await fetchTasks(data.id)
+      }
+    } catch (error: any) {
+      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingProject(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="text-center">
-          <Skull className="h-12 w-12 text-red-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-lg mb-2">Loading your dark realm...</div>
-          {debugInfo && <div className="text-gray-400 text-sm">{debugInfo}</div>}
+          <div className="relative">
+            <Skull className="h-16 w-16 text-red-500 mx-auto mb-6 animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-2 border-red-500/20 animate-ping"></div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Summoning Your Dark Empire...</h2>
+          <p className="text-gray-400 mb-4">Awakening the shadows of productivity</p>
+          <div className="flex justify-center space-x-1 mb-4">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+          </div>
+          {debugInfo && <div className="text-gray-500 text-sm max-w-md">{debugInfo}</div>}
           {error && (
-            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md">
+            <Alert className="mt-4 border-red-900/50 bg-red-950/20 max-w-md mx-auto">
               <AlertDescription className="text-red-400">{error}</AlertDescription>
             </Alert>
           )}
@@ -516,7 +567,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -556,7 +607,7 @@ export default function Dashboard() {
                     value={naturalInput}
                     onChange={(e) => setNaturalInput(e.target.value)}
                     className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
-                    placeholder="🔥 Fix the login bug urgent due tomorrow - users can't sign in with Google authentication"
+                    placeholder="🔥 Fix the login bug urgent due tomorrow."
                     rows={4}
                   />
 
@@ -691,7 +742,6 @@ export default function Dashboard() {
                           {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
                         {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
                         {/* Checklist Items */}
                         {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                           <div className="mb-3 space-y-2">
