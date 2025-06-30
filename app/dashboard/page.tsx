@@ -27,9 +27,6 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Plus,
-  FolderPlus,
-  Lightbulb,
 } from "lucide-react"
 
 // Define valid status values to match database
@@ -50,6 +47,9 @@ export default function Dashboard() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showPreviewHelp, setShowPreviewHelp] = useState(false)
+  const [newProject, setNewProject] = useState({ name: "", description: "", emoji: "📁" })
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -633,7 +633,7 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 onClick={handleSignOut}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -650,7 +650,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleSignOut}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800 w-full justify-start"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 w-full justify-start bg-transparent"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
@@ -890,12 +890,10 @@ export default function Dashboard() {
                               {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current mt-1" />}
                             </div>
                           </div>
-
                           {/* Description */}
                           {task.description && (
                             <p className="text-gray-400 text-sm leading-relaxed">{task.description}</p>
                           )}
-
                           {/* Checklist Items */}
                           {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                             <div className="space-y-2">
@@ -915,7 +913,6 @@ export default function Dashboard() {
                               ))}
                             </div>
                           )}
-
                           {/* Status and Priority Badges */}
                           <div className="flex items-center space-x-2 flex-wrap gap-1">
                             {getStatusIcon(task.status)}
@@ -924,8 +921,7 @@ export default function Dashboard() {
                             </Badge>
                             <Badge className={`${getPriorityColor(task.priority)} text-xs`}>{task.priority}</Badge>
                           </div>
-                        )}
-
+                          )}
                           {/* Due Date */}
                           {task.due_date && (
                             <div className="flex items-center space-x-1 text-xs text-gray-400">
@@ -933,7 +929,6 @@ export default function Dashboard() {
                               <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                             </div>
                           )}
-
                           {/* Status Selector */}
                           <div className="pt-2">
                             <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
@@ -953,7 +948,6 @@ export default function Dashboard() {
                               </SelectContent>
                             </Select>
                           </div>
-
                           {/* Created Date */}
                           <div className="text-xs text-gray-500 pt-1">
                             Created: {new Date(task.created_at).toLocaleDateString()}
