@@ -13,7 +13,22 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain } from "lucide-react"
+import {
+  Skull,
+  LogOut,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Star,
+  Calendar,
+  Zap,
+  Brain,
+  Plus,
+  X,
+  FolderPlus,
+  Lightbulb,
+} from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -27,6 +42,13 @@ export default function Dashboard() {
   const [parsedPreview, setParsedPreview] = useState<any>(null)
   const [error, setError] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [newProject, setNewProject] = useState({
+    name: "",
+    description: "",
+    emoji: "📁",
+  })
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -290,8 +312,7 @@ export default function Dashboard() {
       text.includes("must do") ||
       text.includes("priority") ||
       text.includes("⭐") ||
-      text.includes("star") ||
-      priority === "high" // Auto-mark high priority items as important
+      text.includes("star")
 
     // Extract due date patterns
     let dueDate = null
@@ -502,6 +523,41 @@ export default function Dashboard() {
     }
   }
 
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProject.name.trim() || !user) return
+
+    setIsCreatingProject(true)
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProject.name.trim(),
+          description: newProject.description.trim() || null,
+          emoji: newProject.emoji || "📁",
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setProjects([data, ...projects])
+        setSelectedProject(data.id)
+        setNewProject({ name: "", description: "", emoji: "📁" })
+        setShowProjectForm(false)
+
+        // Fetch tasks for the new project (will be empty initially)
+        await fetchTasks(data.id)
+      }
+    } catch (error: any) {
+      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingProject(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
@@ -542,7 +598,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -723,7 +779,6 @@ export default function Dashboard() {
                           {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
                         {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
-
                         {/* Checklist Items */}
                         {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                           <div className="mb-3 space-y-2">
