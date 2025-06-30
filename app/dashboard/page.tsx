@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain, RefreshCw } from "lucide-react"
+import { Skull, LogOut, Clock, CheckCircle, AlertCircle, Star, Calendar, Zap, Brain, RefreshCw, Plus, X, FolderPlus, Lightbulb } from "lucide-react"
 import { useErrorHandler } from "@/hooks/use-error-handler"
 import { useRetry } from "@/hooks/use-retry"
 import { validateTaskInput, sanitizeInput } from "@/lib/validation"
@@ -45,6 +45,7 @@ export default function Dashboard() {
 
   const completedTasks = useMemo(() => tasks.filter((task) => task.status === "done"), [tasks])
 
+  // Parse input in real-time for preview
   useEffect(() => {
     let mounted = true
 
@@ -59,7 +60,6 @@ export default function Dashboard() {
     }
 
     initializeApp()
-
     return () => {
       mounted = false
     }
@@ -618,6 +618,41 @@ export default function Dashboard() {
     }
   }, [])
 
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProject.name.trim() || !user) return
+
+    setIsCreatingProject(true)
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProject.name.trim(),
+          description: newProject.description.trim() || null,
+          emoji: newProject.emoji || "📁",
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setProjects([data, ...projects])
+        setSelectedProject(data.id)
+        setNewProject({ name: "", description: "", emoji: "📁" })
+        setShowProjectForm(false)
+
+        // Fetch tasks for the new project (will be empty initially)
+        await fetchTasks(data.id)
+      }
+    } catch (error: any) {
+      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingProject(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
@@ -887,46 +922,84 @@ export default function Dashboard() {
                             </div>
                           )}
 
-                          <div className="flex items-center space-x-2 mb-2">
-                            {getStatusIcon(task.status)}
-                            <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
-                            <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                          </div>
-
-                          {task.due_date && (
-                            <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2">
-                              <Calendar className="h-3 w-3 text-red-400" />
-                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                            </div>
-                          )}
+          <div className="space-y-4">
+            {tasks.length === 0 ? (
+              <Card className="bg-black/40 border-gray-800">
+                <CardContent className="py-8 text-center">
+                  <Skull className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No tasks yet. Create your first task above!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              tasks.map((task) => (
+                <Card key={task.id} className="task-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          {task.emoji && <span className="text-lg">{task.emoji}</span>}
+                          <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+                          {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
-                        <div className="ml-4">
-                          <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
-                            <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-gray-700">
-                              <SelectItem value="todo" className="text-white">
-                                To Do
-                              </SelectItem>
-                              <SelectItem value="in_progress" className="text-white">
-                                In Progress
-                              </SelectItem>
-                              <SelectItem value="done" className="text-white">
-                                Done
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                        {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+                        {/* Checklist Items */}
+                        {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                          <div className="mb-3 space-y-2">
+                            {checklistItems[task.id].map((item) => (
+                              <div key={item.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={item.is_completed}
+                                  onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                  className="border-gray-600"
+                                />
+                                <span
+                                  className={`text-sm ${item.is_completed ? "text-gray-500 line-through" : "text-gray-300"}`}
+                                >
+                                  {item.text}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2 mb-2">
+                          {getStatusIcon(task.status)}
+                          <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                          <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
                         </div>
                       </div>
                       <div className="text-xs text-gray-500">
                         Created: {new Date(task.created_at).toLocaleDateString()}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+                      <div className="ml-4">
+                        <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                          <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-900 border-gray-700">
+                            <SelectItem value="todo" className="text-white">
+                              To Do
+                            </SelectItem>
+                            <SelectItem value="in_progress" className="text-white">
+                              In Progress
+                            </SelectItem>
+                            <SelectItem value="done" className="text-white">
+                              Done
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Created: {new Date(task.created_at).toLocaleDateString()}
+                      {task.completed_at && (
+                        <span className="ml-4">Completed: {new Date(task.completed_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
           {/* Completed Tasks Section */}
