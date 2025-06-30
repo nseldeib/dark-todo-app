@@ -253,26 +253,41 @@ export default function Dashboard() {
       )
       .trim()
 
-    // Detect priority
+    // Detect priority using exclamation shortcuts FIRST (higher priority than text detection)
     let priority = "medium"
-    if (
-      text.includes("urgent") ||
-      text.includes("asap") ||
-      text.includes("high priority") ||
-      text.includes("important") ||
-      text.includes("critical") ||
-      text.includes("🔥") ||
-      text.includes("emergency")
-    ) {
-      priority = "high"
-    } else if (
-      text.includes("low priority") ||
-      text.includes("when i have time") ||
-      text.includes("someday") ||
-      text.includes("maybe") ||
-      text.includes("later")
-    ) {
-      priority = "low"
+
+    // Check for exclamation mark shortcuts (! = low, !! = medium, !!! = high)
+    const exclamationMatch = input.match(/!{1,3}(?!\w)/g)
+    if (exclamationMatch) {
+      const maxExclamations = Math.max(...exclamationMatch.map((match) => match.length))
+      if (maxExclamations === 1) {
+        priority = "low"
+      } else if (maxExclamations === 2) {
+        priority = "medium"
+      } else if (maxExclamations >= 3) {
+        priority = "high"
+      }
+    } else {
+      // Fallback to text-based priority detection
+      if (
+        text.includes("urgent") ||
+        text.includes("asap") ||
+        text.includes("high priority") ||
+        text.includes("important") ||
+        text.includes("critical") ||
+        text.includes("🔥") ||
+        text.includes("emergency")
+      ) {
+        priority = "high"
+      } else if (
+        text.includes("low priority") ||
+        text.includes("when i have time") ||
+        text.includes("someday") ||
+        text.includes("maybe") ||
+        text.includes("later")
+      ) {
+        priority = "low"
+      }
     }
 
     // Detect importance
@@ -282,7 +297,8 @@ export default function Dashboard() {
       text.includes("must do") ||
       text.includes("priority") ||
       text.includes("⭐") ||
-      text.includes("star")
+      text.includes("star") ||
+      priority === "high" // Auto-mark high priority items as important
 
     // Extract due date patterns
     let dueDate = null
@@ -343,11 +359,12 @@ export default function Dashboard() {
       }
     }
 
-    // Clean up title (remove priority/date keywords)
+    // Clean up title (remove priority/date keywords and exclamation shortcuts)
     title = title
       .replace(/\b(urgent|asap|high priority|low priority|important|critical|must do|priority)\b/gi, "")
       .replace(/\b(due|by|before|until)\s+[\w/-]+/gi, "")
       .replace(/\b(today|tomorrow|this week|next week)\b/gi, "")
+      .replace(/!{1,3}(?!\w)/g, "") // Remove exclamation shortcuts
       .replace(/\s+/g, " ")
       .trim()
 
@@ -607,7 +624,7 @@ export default function Dashboard() {
                     value={naturalInput}
                     onChange={(e) => setNaturalInput(e.target.value)}
                     className="bg-gray-900/50 border-gray-700 text-white focus:border-red-500 min-h-[100px] text-lg"
-                    placeholder="🔥 Fix the login bug urgent due tomorrow."
+                    placeholder="🔥 Fix the login bug!!! due tomorrow - users can't sign in with Google authentication"
                     rows={4}
                   />
 
@@ -662,13 +679,19 @@ export default function Dashboard() {
                         • <span className="text-yellow-400">Emojis:</span> 🔥 📝 ⚡ 🎯 automatically detected
                       </p>
                       <p>
-                        • <span className="text-yellow-400">Priority:</span> "urgent", "important", "low priority"
+                        • <span className="text-yellow-400">Priority:</span> ! (low) !! (medium) !!! (high)
                       </p>
                       <p>
                         • <span className="text-yellow-400">Due dates:</span> "tomorrow", "Friday", "12/25/2024"
                       </p>
                       <p>
                         • <span className="text-yellow-400">Details:</span> Use " - " to separate title from description
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Keywords:</span> "urgent", "important", "low priority"
+                      </p>
+                      <p>
+                        • <span className="text-yellow-400">Quick example:</span> "🔥 Fix bug!!! due tomorrow"
                       </p>
                     </div>
                   </div>
@@ -742,6 +765,7 @@ export default function Dashboard() {
                           {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current" />}
                         </div>
                         {task.description && <p className="text-gray-400 mb-3">{task.description}</p>}
+
                         {/* Checklist Items */}
                         {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                           <div className="mb-3 space-y-2">
