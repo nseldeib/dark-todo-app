@@ -27,6 +27,9 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Plus,
+  FolderPlus,
+  Lightbulb,
 } from "lucide-react"
 
 // Define valid status values to match database
@@ -260,7 +263,6 @@ export default function Dashboard() {
 
     // Detect priority using exclamation shortcuts FIRST
     let priority = "medium"
-
     const exclamationMatch = input.match(/!{1,3}(?!\w)/g)
     if (exclamationMatch) {
       const maxExclamations = Math.max(...exclamationMatch.map((match) => match.length))
@@ -348,7 +350,6 @@ export default function Dashboard() {
     // Split into title and description
     let title = cleanText
     let description = null
-
     const descriptionIndicators = [" - ", " : ", " because ", " to ", " for ", " about "]
     for (const indicator of descriptionIndicators) {
       if (cleanText.includes(indicator)) {
@@ -384,7 +385,6 @@ export default function Dashboard() {
 
     setIsProcessing(true)
     setError("")
-
     try {
       const parsed = parseNaturalLanguage(naturalInput)
 
@@ -536,6 +536,41 @@ export default function Dashboard() {
         return "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
       default:
         return "bg-gray-900/20 text-gray-400 border-gray-700"
+    }
+  }
+
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProject.name.trim() || !user) return
+
+    setIsCreatingProject(true)
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProject.name.trim(),
+          description: newProject.description.trim() || null,
+          emoji: newProject.emoji || "📁",
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setProjects([data, ...projects])
+        setSelectedProject(data.id)
+        setNewProject({ name: "", description: "", emoji: "📁" })
+        setShowProjectForm(false)
+
+        // Fetch tasks for the new project (will be empty initially)
+        await fetchTasks(data.id)
+      }
+    } catch (error: any) {
+      setError(`Failed to create project: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingProject(false)
     }
   }
 
@@ -776,7 +811,6 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-
                 {/* Mobile-Optimized Form Controls */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                   <div className="flex items-center space-x-2">
@@ -890,6 +924,7 @@ export default function Dashboard() {
                             </Badge>
                             <Badge className={`${getPriorityColor(task.priority)} text-xs`}>{task.priority}</Badge>
                           </div>
+                        )}
 
                           {/* Due Date */}
                           {task.due_date && (
