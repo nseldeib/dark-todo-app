@@ -32,7 +32,7 @@ import {
 } from "lucide-react"
 
 // Define valid status values to match database
-const VALID_STATUSES = ["todo", "in_progress", "done"] as const
+const VALID_STATUSES = ["todo", "in_progress", "done", "canceled"] as const
 type TaskStatus = (typeof VALID_STATUSES)[number]
 
 export default function Dashboard() {
@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [newProject, setNewProject] = useState({ name: "", description: "", emoji: "📁" })
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [showCanceled, setShowCanceled] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -445,6 +446,8 @@ export default function Dashboard() {
       // If marking as done, set completed_at
       if (newStatus === "done") {
         updateData.completed_at = new Date().toISOString()
+      } else if (newStatus === "canceled") {
+        updateData.completed_at = new Date().toISOString() // Track when canceled
       } else {
         updateData.completed_at = null
       }
@@ -514,6 +517,8 @@ export default function Dashboard() {
         return <CheckCircle className="h-4 w-4 text-green-400" />
       case "in_progress":
         return <Clock className="h-4 w-4 text-yellow-400" />
+      case "canceled":
+        return <X className="h-4 w-4 text-gray-400" />
       default:
         return <AlertCircle className="h-4 w-4 text-red-400" />
     }
@@ -525,6 +530,8 @@ export default function Dashboard() {
         return "bg-green-900/20 text-green-400 border-green-900/50"
       case "in_progress":
         return "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+      case "canceled":
+        return "bg-gray-900/20 text-gray-400 border-gray-700"
       default:
         return "bg-red-900/20 text-red-400 border-red-900/50"
     }
@@ -966,7 +973,7 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-3 sm:space-y-4">
-              {tasks.filter((task) => task.status !== "done").length === 0 ? (
+              {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 0 ? (
                 <Card className="bg-black/40 border-gray-800">
                   <CardContent className="py-6 sm:py-8 text-center">
                     <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 mx-auto mb-3 sm:mb-4" />
@@ -977,7 +984,7 @@ export default function Dashboard() {
                 </Card>
               ) : (
                 tasks
-                  .filter((task) => task.status !== "done")
+                  .filter((task) => task.status !== "done" && task.status !== "canceled")
                   .map((task) => (
                     <Card key={task.id} className="task-card">
                       <CardContent className="p-4 sm:p-6">
@@ -1047,6 +1054,9 @@ export default function Dashboard() {
                                 <SelectItem value="done" className="text-white">
                                   Done
                                 </SelectItem>
+                                <SelectItem value="canceled" className="text-gray-400">
+                                  Canceled
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1114,6 +1124,9 @@ export default function Dashboard() {
                                   </SelectItem>
                                   <SelectItem value="done" className="text-white">
                                     Done
+                                  </SelectItem>
+                                  <SelectItem value="canceled" className="text-gray-400">
+                                    Canceled
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
@@ -1238,6 +1251,9 @@ export default function Dashboard() {
                                   <SelectItem value="done" className="text-white">
                                     Done
                                   </SelectItem>
+                                  <SelectItem value="canceled" className="text-gray-400">
+                                    Canceled
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1321,6 +1337,9 @@ export default function Dashboard() {
                                     <SelectItem value="done" className="text-white">
                                       Done
                                     </SelectItem>
+                                    <SelectItem value="canceled" className="text-gray-400">
+                                      Canceled
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1341,6 +1360,244 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        </div>
+        {/* Canceled Tasks Section - Mobile Optimized */}
+        <div>
+          <div className="mb-4 sm:mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Canceled Tasks</h2>
+              <p className="text-gray-400 text-sm sm:text-base">
+                {tasks.filter((task) => task.status === "canceled").length} tasks abandoned to the void
+              </p>
+            </div>
+            {/* Canceled Tasks Summary Card */}
+            <Card className="bg-black/60 border-gray-700/30 mb-4 sm:mb-6">
+              <CardContent className="py-4 sm:py-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-gray-900/20 rounded-lg">
+                      <X className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-semibold text-white">
+                        {tasks.filter((task) => task.status === "canceled").length} Tasks Canceled
+                      </h3>
+                      <p className="text-gray-400 text-sm sm:text-base">
+                        {tasks.filter((task) => task.status === "canceled").length === 0
+                          ? "No tasks have been cast into the void yet"
+                          : "Tasks that were abandoned to the darkness"}
+                      </p>
+                    </div>
+                  </div>
+                  {tasks.filter((task) => task.status === "canceled").length > 0 && (
+                    <div className="text-right">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-400">
+                        {Math.round(
+                          (tasks.filter((task) => task.status === "canceled").length / Math.max(tasks.length, 1)) * 100,
+                        )}
+                        %
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-400">Canceled</div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            {tasks.filter((task) => task.status === "canceled").length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCanceled(!showCanceled)}
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 text-xs sm:text-sm px-2 sm:px-3"
+              >
+                {showCanceled ? "Hide" : "Show"} Canceled
+              </Button>
+            )}
+          </div>
+
+          {showCanceled && (
+            <div className="space-y-3 sm:space-y-4">
+              {tasks.filter((task) => task.status === "canceled").length === 0 ? (
+                <Card className="bg-black/40 border-gray-800">
+                  <CardContent className="py-6 sm:py-8 text-center">
+                    <Skull className="h-10 w-10 sm:h-12 sm:w-12 text-gray-600 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-gray-400 text-sm sm:text-base">
+                      No canceled tasks yet. Sometimes abandonment is wisdom.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                tasks
+                  .filter((task) => task.status === "canceled")
+                  .map((task) => (
+                    <Card key={task.id} className="task-card opacity-60 bg-gray-950/10 border-gray-700/30">
+                      <CardContent className="p-4 sm:p-6">
+                        {/* Mobile Layout for Canceled Tasks */}
+                        <div className="sm:hidden space-y-3">
+                          <div className="flex items-start space-x-2">
+                            {task.emoji && <span className="text-lg opacity-40 flex-shrink-0">{task.emoji}</span>}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-semibold text-white line-through opacity-60 leading-tight break-words">
+                                {task.title}
+                              </h3>
+                              <div className="flex items-center space-x-1 mt-1">
+                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-40" />}
+                                <X className="h-4 w-4 text-gray-400" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {task.description && (
+                            <p className="text-gray-400 opacity-60 text-sm leading-relaxed">{task.description}</p>
+                          )}
+
+                          {/* Checklist Items */}
+                          {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                            <div className="space-y-2">
+                              {checklistItems[task.id].map((item) => (
+                                <div key={item.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={item.is_completed}
+                                    onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                    className="border-gray-600 flex-shrink-0"
+                                    disabled
+                                  />
+                                  <span className="text-sm text-gray-500 line-through break-words opacity-60">
+                                    {item.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center space-x-2 flex-wrap gap-1">
+                            <Badge className="bg-gray-900/20 text-gray-400 border-gray-700 text-xs">canceled</Badge>
+                            <Badge className={`${getPriorityColor(task.priority)} opacity-40 text-xs`}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+
+                          {task.due_date && (
+                            <div className="flex items-center space-x-1 text-xs text-gray-400 opacity-40">
+                              <Calendar className="h-3 w-3 text-red-400 flex-shrink-0" />
+                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2">
+                            <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                              <SelectTrigger className="w-full bg-gray-900/50 border-gray-700 text-white text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-900 border-gray-700">
+                                <SelectItem value="todo" className="text-white">
+                                  To Do
+                                </SelectItem>
+                                <SelectItem value="in_progress" className="text-white">
+                                  In Progress
+                                </SelectItem>
+                                <SelectItem value="done" className="text-white">
+                                  Done
+                                </SelectItem>
+                                <SelectItem value="canceled" className="text-gray-400">
+                                  Canceled
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="text-xs text-gray-500 opacity-60 pt-1">
+                            Created: {new Date(task.created_at).toLocaleDateString()}
+                            {task.completed_at && (
+                              <span className="block text-gray-400 mt-1">
+                                ✗ Canceled: {new Date(task.completed_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Desktop Layout for Canceled Tasks */}
+                        <div className="hidden sm:block">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                {task.emoji && <span className="text-lg opacity-40">{task.emoji}</span>}
+                                <h3 className="text-lg font-semibold text-white line-through opacity-60">
+                                  {task.title}
+                                </h3>
+                                {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current opacity-40" />}
+                                <X className="h-4 w-4 text-gray-400" />
+                              </div>
+                              {task.description && <p className="text-gray-400 mb-3 opacity-60">{task.description}</p>}
+
+                              {/* Checklist Items */}
+                              {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                                <div className="mb-3 space-y-2">
+                                  {checklistItems[task.id].map((item) => (
+                                    <div key={item.id} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        checked={item.is_completed}
+                                        onCheckedChange={(checked) => toggleChecklistItem(item.id, !!checked)}
+                                        className="border-gray-600"
+                                        disabled
+                                      />
+                                      <span className="text-sm text-gray-500 line-through opacity-60">{item.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Badge className="bg-gray-900/20 text-gray-400 border-gray-700">canceled</Badge>
+                                <Badge className={`${getPriorityColor(task.priority)} opacity-40`}>
+                                  {task.priority}
+                                </Badge>
+                              </div>
+
+                              {task.due_date && (
+                                <div className="flex items-center space-x-1 text-xs text-gray-400 mb-2 opacity-40">
+                                  <Calendar className="h-3 w-3 text-red-400" />
+                                  <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
+                                <SelectTrigger className="w-32 bg-gray-900/50 border-gray-700 text-white">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-gray-700">
+                                  <SelectItem value="todo" className="text-white">
+                                    To Do
+                                  </SelectItem>
+                                  <SelectItem value="in_progress" className="text-white">
+                                    In Progress
+                                  </SelectItem>
+                                  <SelectItem value="done" className="text-white">
+                                    Done
+                                  </SelectItem>
+                                  <SelectItem value="canceled" className="text-gray-400">
+                                    Canceled
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 opacity-60">
+                            Created: {new Date(task.created_at).toLocaleDateString()}
+                            {task.completed_at && (
+                              <span className="ml-4 text-gray-400">
+                                ✗ Canceled: {new Date(task.completed_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
