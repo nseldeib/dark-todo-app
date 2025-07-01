@@ -8,37 +8,39 @@ JOIN pg_enum e ON t.oid = e.enumtypid
 WHERE typname = 'task_status'
 ORDER BY enumsortorder;
 
--- If the enum exists but is missing values, we need to add them
--- Add 'done' to the enum if it doesn't exist
+-- Since the enum doesn't exist, we'll work with TEXT columns instead
+-- This script will ensure the tasks table uses TEXT with proper constraints
+
+-- Drop any existing enum type if it exists
+DROP TYPE IF EXISTS task_status CASCADE;
+
+-- Ensure the tasks table uses TEXT for status column
 DO $$
 BEGIN
-    -- Check if 'done' value exists in the enum
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum e
-        JOIN pg_type t ON e.enumtypid = t.oid
-        WHERE t.typname = 'task_status' AND e.enumlabel = 'done'
+    -- Check if the status column exists and alter it if needed
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'tasks' 
+        AND column_name = 'status' 
+        AND table_schema = 'public'
     ) THEN
-        -- Add 'done' to the enum
-        ALTER TYPE task_status ADD VALUE 'done';
-    END IF;
-    
-    -- Check if 'in_progress' value exists in the enum
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum e
-        JOIN pg_type t ON e.enumtypid = t.oid
-        WHERE t.typname = 'task_status' AND e.enumlabel = 'in_progress'
-    ) THEN
-        -- Add 'in_progress' to the enum
-        ALTER TYPE task_status ADD VALUE 'in_progress';
-    END IF;
-    
-    -- Check if 'todo' value exists in the enum
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum e
-        JOIN pg_type t ON e.enumtypid = t.oid
-        WHERE t.typname = 'task_status' AND e.enumlabel = 'todo'
-    ) THEN
-        -- Add 'todo' to the enum
-        ALTER TYPE task_status ADD VALUE 'todo';
+        -- Drop existing constraint if it exists
+        ALTER TABLE public.tasks DROP CONSTRAINT IF EXISTS tasks_status_check;
+        
+        -- Ensure column is TEXT type
+        ALTER TABLE public.tasks ALTER COLUMN status TYPE TEXT;
+        
+        -- Add proper check constraint
+        ALTER TABLE public.tasks ADD CONSTRAINT tasks_status_check 
+        CHECK (status IN ('todo', 'in_progress', 'done'));
+        
+        -- Update any invalid values
+        UPDATE public.tasks 
+        SET status = 'todo' 
+        WHERE status NOT IN ('todo', 'in_progress', 'done');
     END IF;
 END $$;
+
+-- Verify the changes
+SELECT 'Status column fixed successfully' as message;

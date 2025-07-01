@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   Skull,
   LogOut,
@@ -27,9 +28,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Plus,
   FolderPlus,
-  Lightbulb,
 } from "lucide-react"
 
 // Define valid status values to match database
@@ -50,6 +49,9 @@ export default function Dashboard() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showPreviewHelp, setShowPreviewHelp] = useState(false)
+  const [newProject, setNewProject] = useState({ name: "", description: "", emoji: "📁" })
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -633,7 +635,7 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 onClick={handleSignOut}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -650,7 +652,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleSignOut}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800 w-full justify-start"
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800 w-full justify-start bg-transparent"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
@@ -666,6 +668,95 @@ export default function Dashboard() {
           <Alert className="mb-4 sm:mb-6 border-red-900/50 bg-red-950/20">
             <AlertDescription className="text-red-400 text-sm sm:text-base">{error}</AlertDescription>
           </Alert>
+        )}
+
+        {/* New Project Form - Outside of task creation form */}
+        {showProjectForm && (
+          <div className="mb-6 sm:mb-8">
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-white text-lg flex items-center">
+                  <FolderPlus className="h-5 w-5 mr-2 text-green-400" />
+                  Create New Project
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={createProject} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="project-name" className="text-gray-300 text-sm">
+                        Project Name
+                      </Label>
+                      <Input
+                        id="project-name"
+                        value={newProject.name}
+                        onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1"
+                        placeholder="Enter project name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="project-emoji" className="text-gray-300 text-sm">
+                        Emoji
+                      </Label>
+                      <Input
+                        id="project-emoji"
+                        value={newProject.emoji}
+                        onChange={(e) => setNewProject({ ...newProject, emoji: e.target.value })}
+                        className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 text-center"
+                        placeholder="📁"
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="project-description" className="text-gray-300 text-sm">
+                      Description (Optional)
+                    </Label>
+                    <Textarea
+                      id="project-description"
+                      value={newProject.description}
+                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                      className="bg-gray-900/50 border-gray-700 text-white focus:border-green-500 mt-1 resize-none"
+                      placeholder="Brief description of this project"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      type="submit"
+                      className="bg-green-600 hover:bg-green-700 text-white flex items-center"
+                      disabled={isCreatingProject || !newProject.name.trim()}
+                    >
+                      {isCreatingProject ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <FolderPlus className="h-4 w-4 mr-2" />
+                          Create Project
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowProjectForm(false)
+                        setNewProject({ name: "", description: "", emoji: "📁" })
+                      }}
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Mobile-Optimized Smart Task Creation */}
@@ -817,7 +908,16 @@ export default function Dashboard() {
                     <Label htmlFor="project-select" className="text-gray-300 text-sm whitespace-nowrap">
                       Project:
                     </Label>
-                    <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <Select
+                      value={selectedProject}
+                      onValueChange={(value) => {
+                        if (value === "new-project") {
+                          setShowProjectForm(true)
+                        } else {
+                          setSelectedProject(value)
+                        }
+                      }}
+                    >
                       <SelectTrigger className="w-full sm:w-48 bg-gray-900/50 border-gray-700 text-white text-sm">
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
@@ -827,6 +927,9 @@ export default function Dashboard() {
                             {project.emoji} {project.name}
                           </SelectItem>
                         ))}
+                        <SelectItem value="new-project" className="text-green-400 font-medium">
+                          + Add New Project
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -890,12 +993,10 @@ export default function Dashboard() {
                               {task.is_important && <Star className="h-4 w-4 text-red-400 fill-current mt-1" />}
                             </div>
                           </div>
-
                           {/* Description */}
                           {task.description && (
                             <p className="text-gray-400 text-sm leading-relaxed">{task.description}</p>
                           )}
-
                           {/* Checklist Items */}
                           {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
                             <div className="space-y-2">
@@ -915,7 +1016,6 @@ export default function Dashboard() {
                               ))}
                             </div>
                           )}
-
                           {/* Status and Priority Badges */}
                           <div className="flex items-center space-x-2 flex-wrap gap-1">
                             {getStatusIcon(task.status)}
@@ -924,8 +1024,6 @@ export default function Dashboard() {
                             </Badge>
                             <Badge className={`${getPriorityColor(task.priority)} text-xs`}>{task.priority}</Badge>
                           </div>
-                        )}
-
                           {/* Due Date */}
                           {task.due_date && (
                             <div className="flex items-center space-x-1 text-xs text-gray-400">
@@ -933,7 +1031,6 @@ export default function Dashboard() {
                               <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                             </div>
                           )}
-
                           {/* Status Selector */}
                           <div className="pt-2">
                             <Select value={task.status} onValueChange={(value) => updateTaskStatus(task.id, value)}>
@@ -953,7 +1050,6 @@ export default function Dashboard() {
                               </SelectContent>
                             </Select>
                           </div>
-
                           {/* Created Date */}
                           <div className="text-xs text-gray-500 pt-1">
                             Created: {new Date(task.created_at).toLocaleDateString()}
