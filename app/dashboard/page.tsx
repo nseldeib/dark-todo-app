@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
   Skull,
@@ -31,6 +32,8 @@ import {
   Plus,
   List,
   CheckSquare,
+  Trash2,
+  Filter,
 } from "lucide-react"
 
 // Define valid status values to match database
@@ -56,7 +59,7 @@ export default function Dashboard() {
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [showCanceled, setShowCanceled] = useState(false)
   const [showStatsDetails, setShowStatsDetails] = useState(false)
-  const [currentView, setCurrentView] = useState<'overview' | 'active' | 'completed' | 'create'>('overview')
+  const [currentView, setCurrentView] = useState<"overview" | "active" | "completed" | "create">("overview")
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -805,48 +808,48 @@ export default function Dashboard() {
           {/* Navigation Buttons */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
             <Button
-              onClick={() => setCurrentView('overview')}
-              variant={currentView === 'overview' ? 'default' : 'outline'}
+              onClick={() => setCurrentView("overview")}
+              variant={currentView === "overview" ? "default" : "outline"}
               className={`${
-                currentView === 'overview'
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent'
+                currentView === "overview"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               } text-xs sm:text-sm`}
             >
               <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Overview
             </Button>
             <Button
-              onClick={() => setCurrentView('create')}
-              variant={currentView === 'create' ? 'default' : 'outline'}
+              onClick={() => setCurrentView("create")}
+              variant={currentView === "create" ? "default" : "outline"}
               className={`${
-                currentView === 'create'
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent'
+                currentView === "create"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               } text-xs sm:text-sm`}
             >
               <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Create
             </Button>
             <Button
-              onClick={() => setCurrentView('active')}
-              variant={currentView === 'active' ? 'default' : 'outline'}
+              onClick={() => setCurrentView("active")}
+              variant={currentView === "active" ? "default" : "outline"}
               className={`${
-                currentView === 'active'
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent'
+                currentView === "active"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               } text-xs sm:text-sm`}
             >
               <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Active
             </Button>
             <Button
-              onClick={() => setCurrentView('completed')}
-              variant={currentView === 'completed' ? 'default' : 'outline'}
+              onClick={() => setCurrentView("completed")}
+              variant={currentView === "completed" ? "default" : "outline"}
               className={`${
-                currentView === 'completed'
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent'
+                currentView === "completed"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
               } text-xs sm:text-sm`}
             >
               <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -855,7 +858,7 @@ export default function Dashboard() {
           </div>
 
           {/* Collapsible Detailed Stats - Mobile Optimized */}
-          {currentView === 'overview' && (
+          {currentView === "overview" && (
             <>
               <div className="lg:hidden">
                 <Button
@@ -879,7 +882,9 @@ export default function Dashboard() {
               </div>
 
               {/* Detailed Stats Row - Collapsible on Mobile */}
-              <div className={`grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 ${!showStatsDetails && "hidden lg:grid"}`}>
+              <div
+                className={`grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 ${!showStatsDetails && "hidden lg:grid"}`}
+              >
                 {/* Priority Breakdown - Compact */}
                 <Card className="bg-black/40 border-gray-700/30">
                   <CardHeader className="pb-2">
@@ -898,7 +903,8 @@ export default function Dashboard() {
                         <span className="text-white font-semibold">
                           {
                             tasks.filter(
-                              (task) => task.priority === "high" && task.status !== "done" && task.status !== "canceled",
+                              (task) =>
+                                task.priority === "high" && task.status !== "done" && task.status !== "canceled",
                             ).length
                           }
                         </span>
@@ -926,7 +932,8 @@ export default function Dashboard() {
                         <span className="text-white font-semibold">
                           {
                             tasks.filter(
-                              (task) => task.priority === "medium" && task.status !== "done" && task.status !== "canceled",
+                              (task) =>
+                                task.priority === "medium" && task.status !== "done" && task.status !== "canceled",
                             ).length
                           }
                         </span>
@@ -962,7 +969,8 @@ export default function Dashboard() {
                           {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
                             ? Math.round(
                                 (tasks.filter(
-                                  (task) => task.priority === "low" && task.status !== "done" && task.status !== "canceled",
+                                  (task) =>
+                                    task.priority === "low" && task.status !== "done" && task.status !== "canceled",
                                 ).length /
                                   tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
                                   100,
@@ -1107,7 +1115,7 @@ export default function Dashboard() {
         )}
 
         {/* Content based on current view */}
-        {currentView === 'create' && (
+        {currentView === "create" && (
           <>
             {/* New Project Form */}
             {showProjectForm && (
@@ -1241,7 +1249,11 @@ export default function Dashboard() {
                               onClick={() => setShowPreviewHelp(!showPreviewHelp)}
                               className="text-gray-400 hover:text-white p-1 sm:hidden"
                             >
-                              {showPreviewHelp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              {showPreviewHelp ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
 
@@ -1252,7 +1264,9 @@ export default function Dashboard() {
                               <div className="text-white flex items-center text-sm mt-1">
                                 {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
                                 {parsedPreview.title}
-                                {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
+                                {parsedPreview.isImportant && (
+                                  <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />
+                                )}
                               </div>
                             </div>
                             <div>
@@ -1285,7 +1299,9 @@ export default function Dashboard() {
                               <div className="text-white flex items-center">
                                 {parsedPreview.emoji && <span className="mr-2">{parsedPreview.emoji}</span>}
                                 {parsedPreview.title}
-                                {parsedPreview.isImportant && <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />}
+                                {parsedPreview.isImportant && (
+                                  <Star className="h-3 w-3 ml-2 text-red-400 fill-current" />
+                                )}
                               </div>
                             </div>
                             <div>
@@ -1374,4 +1390,238 @@ export default function Dashboard() {
                       </div>
                       <Button
                         type="submit"
-                        className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-2 sm:py\
+                        className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base"
+                        disabled={isProcessing || !naturalInput.trim() || !selectedProject}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-4 w-4 mr-2" />
+                            Create Task
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+
+        {/* Task Lists based on view */}
+        {(currentView === "overview" || currentView === "active" || currentView === "completed") && (
+          <div className="space-y-4 sm:space-y-6">
+            {/* Filter Controls for Overview */}
+            {currentView === "overview" && (
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className={`border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent text-xs sm:text-sm ${
+                    showCompleted ? "bg-gray-800" : ""
+                  }`}
+                >
+                  <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {showCompleted ? "Hide" : "Show"} Completed
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCanceled(!showCanceled)}
+                  className={`border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent text-xs sm:text-sm ${
+                    showCanceled ? "bg-gray-800" : ""
+                  }`}
+                >
+                  <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {showCanceled ? "Hide" : "Show"} Canceled
+                </Button>
+              </div>
+            )}
+
+            {/* Task List */}
+            <div className="space-y-3 sm:space-y-4">
+              {tasks
+                .filter((task) => {
+                  if (currentView === "active") {
+                    return task.status !== "done" && task.status !== "canceled"
+                  } else if (currentView === "completed") {
+                    return task.status === "done"
+                  } else {
+                    // Overview - apply filters
+                    if (!showCompleted && task.status === "done") return false
+                    if (!showCanceled && task.status === "canceled") return false
+                    return true
+                  }
+                })
+                .map((task) => (
+                  <Card
+                    key={task.id}
+                    className={`bg-gray-800/50 border-gray-700 hover:border-gray-600 transition-all duration-200 ${
+                      task.is_important ? "ring-1 ring-red-500/30" : ""
+                    }`}
+                  >
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            {task.emoji && <span className="text-base sm:text-lg">{task.emoji}</span>}
+                            <h3 className="text-white font-medium text-sm sm:text-base truncate">{task.title}</h3>
+                            {task.is_important && (
+                              <Star className="h-3 w-3 sm:h-4 sm:w-4 text-red-400 fill-current flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {task.description && (
+                            <p className="text-gray-400 text-xs sm:text-sm mb-2 line-clamp-2">{task.description}</p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              {getStatusIcon(task.status)}
+                              <Badge className={getStatusColor(task.status)}>{task.status.replace("_", " ")}</Badge>
+                            </div>
+                            <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                            {task.due_date && (
+                              <Badge
+                                className={`${
+                                  new Date(task.due_date) < new Date() && task.status !== "done"
+                                    ? "bg-red-900/20 text-red-400 border-red-900/50"
+                                    : "bg-blue-900/20 text-blue-400 border-blue-900/50"
+                                }`}
+                              >
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(task.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Checklist Items */}
+                          {checklistItems[task.id] && checklistItems[task.id].length > 0 && (
+                            <div className="mt-3 space-y-1">
+                              {checklistItems[task.id].map((item) => (
+                                <div key={item.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`checklist-${item.id}`}
+                                    checked={item.is_completed}
+                                    onCheckedChange={(checked) => toggleChecklistItem(item.id, checked as boolean)}
+                                    className="border-gray-600 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                                  />
+                                  <label
+                                    htmlFor={`checklist-${item.id}`}
+                                    className={`text-xs sm:text-sm cursor-pointer ${
+                                      item.is_completed ? "line-through text-gray-500" : "text-gray-300"
+                                    }`}
+                                  >
+                                    {item.title}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 flex-shrink-0">
+                          {task.status !== "done" && task.status !== "canceled" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateTaskStatus(task.id, task.status === "in_progress" ? "todo" : "in_progress")
+                                }
+                                className="border-yellow-700 text-yellow-400 hover:bg-yellow-900/20 bg-transparent text-xs px-2 py-1"
+                              >
+                                <Clock className="h-3 w-3" />
+                                <span className="hidden sm:inline ml-1">
+                                  {task.status === "in_progress" ? "Pause" : "Start"}
+                                </span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateTaskStatus(task.id, "done")}
+                                className="border-green-700 text-green-400 hover:bg-green-900/20 bg-transparent text-xs px-2 py-1"
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                <span className="hidden sm:inline ml-1">Done</span>
+                              </Button>
+                            </>
+                          )}
+                          {task.status === "done" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateTaskStatus(task.id, "todo")}
+                              className="border-yellow-700 text-yellow-400 hover:bg-yellow-900/20 bg-transparent text-xs px-2 py-1"
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              <span className="hidden sm:inline ml-1">Reopen</span>
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteTask(task.id)}
+                            className="border-red-700 text-red-400 hover:bg-red-900/20 bg-transparent text-xs px-2 py-1"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span className="hidden sm:inline ml-1">Delete</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+              {tasks.filter((task) => {
+                if (currentView === "active") {
+                  return task.status !== "done" && task.status !== "canceled"
+                } else if (currentView === "completed") {
+                  return task.status === "done"
+                } else {
+                  if (!showCompleted && task.status === "done") return false
+                  if (!showCanceled && task.status === "canceled") return false
+                  return true
+                }
+              }).length === 0 && (
+                <Card className="bg-gray-800/30 border-gray-700/50">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="text-gray-500 mb-4">
+                      <Skull className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 opacity-50" />
+                    </div>
+                    <h3 className="text-gray-400 text-lg sm:text-xl font-medium mb-2">
+                      {currentView === "active" && "No active tasks"}
+                      {currentView === "completed" && "No completed tasks yet"}
+                      {currentView === "overview" && "No tasks found"}
+                    </h3>
+                    <p className="text-gray-500 text-sm sm:text-base">
+                      {currentView === "active" && "All caught up! Time to create some new tasks."}
+                      {currentView === "completed" && "Complete some tasks to see them here."}
+                      {currentView === "overview" && "Create your first task to get started."}
+                    </p>
+                    {(currentView === "active" || currentView === "overview") && (
+                      <Button
+                        onClick={() => setCurrentView("create")}
+                        className="mt-4 bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Task
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
