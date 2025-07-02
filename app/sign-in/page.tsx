@@ -71,9 +71,52 @@ export default function SignIn() {
     }
   }
 
-  const handleDemoLogin = () => {
+  const handleDemoLogin = async () => {
     setEmail("demo@todoapp.dev")
     setPassword("DarkTodo2024!")
+    setLoading(true)
+    setError("")
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "demo@todoapp.dev",
+        password: "DarkTodo2024!",
+      })
+
+      if (error) {
+        // Custom error messages with dark humor
+        let errorMessage = ""
+
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "The demo spirit has vanished from the realm. The credentials may have expired."
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "The demo soul hasn't been verified yet. Check your email for the ritual confirmation."
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Whoa there, eager one. The shadows need a moment to process your desperation."
+        } else if (error.message.includes("Network")) {
+          errorMessage = "The digital realm is unreachable. Check your connection to the underworld."
+        } else {
+          errorMessage = `The darkness whispers: "${error.message}"`
+        }
+
+        setError(errorMessage)
+      } else {
+        // Show loading animation before redirect
+        setLoading(false)
+        setShowLoadingAnimation(true)
+
+        // Redirect after 2.5 seconds
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 2500)
+      }
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      if (!showLoadingAnimation) {
+        setLoading(false)
+      }
+    }
   }
 
   return (
