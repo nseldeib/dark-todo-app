@@ -705,6 +705,167 @@ export default function Dashboard() {
             <AlertDescription className="text-red-400">{error}</AlertDescription>
           </Alert>
         )}
+
+        {/* Top Priority Tasks Section */}
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Top Priority Tasks</h2>
+            <p className="text-gray-400 text-sm sm:text-base">Your most important active tasks</p>
+          </div>
+
+          <div className="space-y-3 sm:space-y-4">
+            {tasks
+              .filter((task) => task.status !== "done" && task.status !== "canceled")
+              .sort((a, b) => {
+                // Sort by priority (high > medium > low) then by importance then by due date
+                const priorityOrder = { high: 3, medium: 2, low: 1 }
+                const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0
+                const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0
+
+                if (aPriority !== bPriority) return bPriority - aPriority
+                if (a.is_important !== b.is_important) return a.is_important ? -1 : 1
+
+                // Sort by due date (overdue first, then soonest)
+                if (a.due_date && b.due_date) {
+                  return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+                }
+                if (a.due_date && !b.due_date) return -1
+                if (!a.due_date && b.due_date) return 1
+
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              })
+              .slice(0, 3)
+              .map((task, index) => (
+                <Card
+                  key={task.id}
+                  className={`bg-gray-800/50 border-gray-700 hover:border-gray-600 transition-all duration-200 ${
+                    task.is_important ? "ring-1 ring-red-500/30" : ""
+                  } ${index === 0 ? "border-yellow-500/50" : ""}`}
+                >
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          {index === 0 && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>}
+                          {task.emoji && <span className="text-lg sm:text-xl">{task.emoji}</span>}
+                          <h3 className="text-white font-medium text-base sm:text-lg truncate">{task.title}</h3>
+                          {task.is_important && (
+                            <Star className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 fill-current flex-shrink-0" />
+                          )}
+                        </div>
+
+                        {task.description && (
+                          <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{task.description}</p>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                          <div className="flex items-center gap-1">
+                            {task.status === "in_progress" ? (
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-400" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-400" />
+                            )}
+                            <Badge
+                              className={
+                                task.status === "in_progress"
+                                  ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                  : "bg-red-900/20 text-red-400 border-red-900/50"
+                              }
+                            >
+                              {task.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+
+                          <Badge
+                            className={
+                              task.priority === "high"
+                                ? "bg-red-900/20 text-red-400 border-red-900/50"
+                                : task.priority === "medium"
+                                  ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                  : "bg-gray-900/20 text-gray-400 border-gray-700"
+                            }
+                          >
+                            {task.priority} priority
+                          </Badge>
+
+                          {task.due_date && (
+                            <Badge
+                              className={`${
+                                new Date(task.due_date) < new Date() && task.status !== "done"
+                                  ? "bg-red-900/20 text-red-400 border-red-900/50"
+                                  : new Date(task.due_date).toDateString() === new Date().toDateString()
+                                    ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                    : "bg-blue-900/20 text-blue-400 border-blue-900/50"
+                              }`}
+                            >
+                              <Calendar className="h-3 w-3 mr-1" />
+                              {new Date(task.due_date) < new Date() && task.status !== "done"
+                                ? "Overdue"
+                                : new Date(task.due_date).toDateString() === new Date().toDateString()
+                                  ? "Due Today"
+                                  : new Date(task.due_date).toLocaleDateString()}
+                            </Badge>
+                          )}
+
+                          {task.projects && (
+                            <Badge className="bg-blue-900/20 text-blue-400 border-blue-900/50">
+                              {task.projects.emoji} {task.projects.name}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Action Buttons */}
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 flex-shrink-0">
+                        <Link href="/dashboard/active">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent text-xs px-2 py-1"
+                          >
+                            <ArrowRight className="h-3 w-3" />
+                            <span className="hidden sm:inline ml-1">View</span>
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 0 && (
+              <Card className="bg-gray-800/30 border-gray-700/50">
+                <CardContent className="p-6 sm:p-8 text-center">
+                  <div className="text-gray-500 mb-4">
+                    <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 opacity-50" />
+                  </div>
+                  <h3 className="text-gray-400 text-lg sm:text-xl font-medium mb-2">All caught up!</h3>
+                  <p className="text-gray-500 text-sm sm:text-base mb-4">
+                    No active tasks found. Time to create some new ones or enjoy the moment.
+                  </p>
+                  <Link href="/dashboard/create">
+                    <Button className="bg-red-600 hover:bg-red-700 text-white">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Task
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
+
+            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 3 && (
+              <div className="text-center pt-4">
+                <Link href="/dashboard/active">
+                  <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent">
+                    View All Active Tasks (
+                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length})
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   )
