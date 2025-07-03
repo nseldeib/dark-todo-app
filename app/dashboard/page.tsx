@@ -246,6 +246,35 @@ export default function Dashboard() {
     }
   }
 
+  const updateTaskImportance = async (taskId: string, isImportant: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          is_important: isImportant,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", taskId)
+
+      if (error) {
+        console.error("Database update error:", error)
+        throw error
+      }
+
+      // Update local state
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, is_important: isImportant, updated_at: new Date().toISOString() } : task,
+        ),
+      )
+
+      setError("")
+    } catch (error: any) {
+      console.error("Error updating task importance:", error)
+      setError(`Failed to update task: ${getHumanReadableError(error.message)}`)
+    }
+  }
+
   const startEditingTask = (task: Task) => {
     setEditingTask(task.id)
     setEditForm({
@@ -453,7 +482,7 @@ export default function Dashboard() {
 
       {/* Quick Task Creation */}
       <div className="mb-6 sm:mb-8">
-        <Card className="bg-gradient-to-r from-red-950/20 to-red-900/10 border-red-900/30">
+        <Card className="bg-gradient-to-r from-red-950/20 to-red-900/10 border-red-900/30 quick-task-creation">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-500/10 rounded-lg">
@@ -997,6 +1026,105 @@ export default function Dashboard() {
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Top Priority Tasks</h2>
             <p className="text-gray-400 text-sm sm:text-base">Your most important active tasks</p>
           </div>
+
+          {/* Priority Tasks Prompt - Show when less than 5 active tasks */}
+          {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length < 5 &&
+            tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0 && (
+              <Card className="bg-gradient-to-r from-purple-950/20 to-purple-900/10 border-purple-900/30 mb-6">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-purple-500/10 rounded-lg flex-shrink-0">
+                      <Star className="h-5 w-5 text-purple-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-white font-semibold text-lg mb-2">Focus Your Energy</h3>
+                      <p className="text-gray-400 text-sm mb-4">
+                        You have {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length}{" "}
+                        active task
+                        {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 1
+                          ? ""
+                          : "s"}
+                        . Consider adding more tasks to build momentum, or mark your current task
+                        {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 1
+                          ? ""
+                          : "s"}{" "}
+                        as important to prioritize your focus.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Link href="/dashboard/create">
+                          <Button className="bg-purple-600 hover:bg-purple-700 text-white text-sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add More Tasks
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-purple-700 text-purple-400 hover:bg-purple-900/20 bg-transparent text-sm"
+                          onClick={() => {
+                            // Mark the first task as important if none are marked
+                            const firstTask = tasks.find(
+                              (task) => task.status !== "done" && task.status !== "canceled" && !task.is_important,
+                            )
+                            if (firstTask) {
+                              updateTaskImportance(firstTask.id, true)
+                            }
+                          }}
+                        >
+                          <Star className="h-4 w-4 mr-2" />
+                          Mark Task as Important
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+          {/* Empty State Prompt - Show when no active tasks */}
+          {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 0 && (
+            <Card className="bg-gradient-to-r from-blue-950/20 to-blue-900/10 border-blue-900/30 mb-6">
+              <CardContent className="p-6 sm:p-8 text-center">
+                <div className="mb-4">
+                  <div className="p-3 bg-blue-500/10 rounded-full w-fit mx-auto mb-4">
+                    <Star className="h-8 w-8 text-blue-400" />
+                  </div>
+                  <h3 className="text-white font-semibold text-xl mb-2">What are your top priorities today?</h3>
+                  <p className="text-gray-400 text-sm sm:text-base mb-6 max-w-md mx-auto">
+                    Start by identifying 3-5 key tasks that will move you closer to your goals. These will become your
+                    focus areas for maximum productivity.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+                  <Link href="/dashboard/create">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Priority Task
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent w-full"
+                    onClick={() => {
+                      // Scroll to quick task creation
+                      document.querySelector(".quick-task-creation")?.scrollIntoView({ behavior: "smooth" })
+                    }}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Quick Add Above
+                  </Button>
+                </div>
+
+                <div className="mt-6 p-4 bg-gray-900/30 rounded-lg">
+                  <h4 className="text-gray-300 font-medium text-sm mb-2">💡 Productivity Tip</h4>
+                  <p className="text-gray-500 text-xs">
+                    Focus on 3-5 priority tasks per day. This keeps you productive without feeling overwhelmed.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-3 sm:space-y-4">
             {tasks
