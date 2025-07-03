@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import type React from "react"
+
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase, type Task, type Project } from "@/lib/supabase"
@@ -50,6 +52,12 @@ export default function Dashboard() {
     priority: "medium",
     is_important: false,
   })
+
+  const [quickTaskTitle, setQuickTaskTitle] = useState("")
+  const [quickTaskPriority, setQuickTaskPriority] = useState("medium")
+  const [quickTaskImportant, setQuickTaskImportant] = useState(false)
+  const [isCreatingQuickTask, setIsCreatingQuickTask] = useState(false)
+
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -302,6 +310,60 @@ export default function Dashboard() {
     })
   }
 
+  const createQuickTask = async () => {
+    if (!quickTaskTitle.trim() || !user || !selectedProject) return
+
+    setIsCreatingQuickTask(true)
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: user.id,
+          project_id: selectedProject,
+          title: quickTaskTitle.trim(),
+          description: null,
+          emoji: null,
+          status: "todo",
+          priority: quickTaskPriority,
+          is_important: quickTaskImportant,
+          due_date: null,
+        })
+        .select(`
+        *,
+        projects (
+          name,
+          emoji
+        )
+      `)
+        .single()
+
+      if (error) {
+        console.error("Error creating quick task:", error)
+        throw error
+      }
+
+      if (data) {
+        setTasks((prevTasks) => [data, ...prevTasks])
+        setQuickTaskTitle("")
+        setQuickTaskPriority("medium")
+        setQuickTaskImportant(false)
+        setError("")
+      }
+    } catch (error: any) {
+      console.error("Error creating quick task:", error)
+      setError(`Failed to create task: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingQuickTask(false)
+    }
+  }
+
+  const handleQuickTaskKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      createQuickTask()
+    }
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -388,6 +450,117 @@ export default function Dashboard() {
           )}
         </div>
       </header>
+
+      {/* Quick Task Creation */}
+      <div className="mb-6 sm:mb-8">
+        <Card className="bg-gradient-to-r from-red-950/20 to-red-900/10 border-red-900/30">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <Plus className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-lg">Quick Add Task</h3>
+                <p className="text-gray-400 text-sm">Create a new task instantly</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <Input
+                    value={quickTaskTitle}
+                    onChange={(e) => setQuickTaskTitle(e.target.value)}
+                    onKeyPress={handleQuickTaskKeyPress}
+                    placeholder="What needs to be done?"
+                    className="bg-gray-900/50 border-gray-600 text-white placeholder:text-gray-500 h-12 text-base"
+                    disabled={isCreatingQuickTask}
+                  />
+                </div>
+
+                <div className="flex gap-2 sm:gap-3">
+                  <Select value={quickTaskPriority} onValueChange={setQuickTaskPriority} disabled={isCreatingQuickTask}>
+                    <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white w-32 h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-600">
+                      <SelectItem value="low" className="text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                          Low
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="medium" className="text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                          Medium
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="high" className="text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          High
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    onClick={() => setQuickTaskImportant(!quickTaskImportant)}
+                    variant="outline"
+                    size="default"
+                    className={`border-gray-600 h-12 px-3 ${
+                      quickTaskImportant
+                        ? "bg-red-900/20 border-red-500/50 text-red-400"
+                        : "text-gray-400 hover:bg-gray-800 bg-transparent"
+                    }`}
+                    disabled={isCreatingQuickTask}
+                  >
+                    <Star className={`h-4 w-4 ${quickTaskImportant ? "fill-current" : ""}`} />
+                    <span className="sr-only">Mark as important</span>
+                  </Button>
+
+                  <Button
+                    onClick={createQuickTask}
+                    disabled={!quickTaskTitle.trim() || isCreatingQuickTask}
+                    className="bg-red-600 hover:bg-red-700 text-white h-12 px-6"
+                  >
+                    {isCreatingQuickTask ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Task
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-4">
+                  <span>Press Enter to add quickly</span>
+                  {selectedProject && projects.find((p) => p.id === selectedProject) && (
+                    <span className="flex items-center gap-1">
+                      Adding to:
+                      <span className="text-gray-400 font-medium">
+                        {projects.find((p) => p.id === selectedProject)?.emoji}{" "}
+                        {projects.find((p) => p.id === selectedProject)?.name}
+                      </span>
+                    </span>
+                  )}
+                </div>
+                <Link href="/dashboard/create" className="text-red-400 hover:text-red-300 transition-colors">
+                  Advanced creation →
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <main className="container mx-auto px-4 py-4 sm:py-6 lg:py-8 max-w-6xl">
         {/* Dashboard Stats Section */}
