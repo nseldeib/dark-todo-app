@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import type React from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase, type Task, type Project } from "@/lib/supabase"
@@ -1053,6 +1054,7 @@ export default function Dashboard() {
                             </Button>
                           </div>
                         </div>
+                      </div>
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-1 flex-shrink-0">
