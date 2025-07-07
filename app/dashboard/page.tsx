@@ -1,7 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
 import type React from "react"
-
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase, type Task, type Project } from "@/lib/supabase"
@@ -9,10 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit, Save, X } from "lucide-react"
 import {
   Skull,
   LogOut,
@@ -57,7 +52,6 @@ export default function Dashboard() {
   const [quickTaskPriority, setQuickTaskPriority] = useState("medium")
   const [quickTaskImportant, setQuickTaskImportant] = useState(false)
   const [isCreatingQuickTask, setIsCreatingQuickTask] = useState(false)
-
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -1226,6 +1220,7 @@ export default function Dashboard() {
                             </Button>
                           </div>
                         </div>
+                      </div>
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-1 flex-shrink-0">
