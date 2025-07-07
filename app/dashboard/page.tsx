@@ -35,6 +35,23 @@ export default function Dashboard() {
   const [error, setError] = useState("")
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showStatsDetails, setShowStatsDetails] = useState(false)
+  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<{
+    title: string
+    description: string
+    priority: string
+    is_important: boolean
+  }>({
+    title: "",
+    description: "",
+    priority: "medium",
+    is_important: false,
+  })
+
+  const [quickTaskTitle, setQuickTaskTitle] = useState("")
+  const [quickTaskPriority, setQuickTaskPriority] = useState("medium")
+  const [quickTaskImportant, setQuickTaskImportant] = useState(false)
+  const [isCreatingQuickTask, setIsCreatingQuickTask] = useState(false)
   const router = useRouter()
 
   const getHumanReadableError = (errorMessage: string): string => {
@@ -185,8 +202,159 @@ export default function Dashboard() {
       await supabase.auth.signOut()
       router.push("/sign-in")
     } catch (error: any) {
-      console.error("Error updating task importance:", error)
+      console.error("Error signing out:", error)
+      setError(`Error signing out: ${getHumanReadableError(error.message)}`)
+    }
+  }
+
+  const updateTaskStatus = async (taskId: string, newStatus: string) => {
+    try {
+      const updateData: any = { status: newStatus }
+
+      if (newStatus === "done") {
+        updateData.completed_at = new Date().toISOString()
+      } else if (newStatus === "canceled") {
+        updateData.completed_at = new Date().toISOString()
+      } else {
+        updateData.completed_at = null
+      }
+
+      const { error } = await supabase.from("tasks").update(updateData).eq("id", taskId)
+
+      if (error) {
+        console.error("Database update error:", error)
+        throw error
+      }
+
+      // Update local state
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, status: newStatus, completed_at: updateData.completed_at } : task,
+        ),
+      )
+
+      setError("")
+    } catch (error: any) {
+      console.error("Error updating task status:", error)
       setError(`Failed to update task: ${getHumanReadableError(error.message)}`)
+    }
+  }
+
+  const startEditingTask = (task: Task) => {
+    setEditingTask(task.id)
+    setEditForm({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      is_important: task.is_important,
+    })
+  }
+
+  const saveTaskEdit = async () => {
+    if (!editingTask) return
+
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: editForm.title,
+          description: editForm.description,
+          priority: editForm.priority,
+          is_important: editForm.is_important,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingTask)
+
+      if (error) {
+        console.error("Database update error:", error)
+        throw error
+      }
+
+      // Update local state
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === editingTask
+            ? {
+                ...task,
+                title: editForm.title,
+                description: editForm.description,
+                priority: editForm.priority,
+                is_important: editForm.is_important,
+                updated_at: new Date().toISOString(),
+              }
+            : task,
+        ),
+      )
+
+      setEditingTask(null)
+      setError("")
+    } catch (error: any) {
+      console.error("Error updating task:", error)
+      setError(`Failed to update task: ${getHumanReadableError(error.message)}`)
+    }
+  }
+
+  const cancelTaskEdit = () => {
+    setEditingTask(null)
+    setEditForm({
+      title: "",
+      description: "",
+      priority: "medium",
+      is_important: false,
+    })
+  }
+
+  const createQuickTask = async () => {
+    if (!quickTaskTitle.trim() || !user || !selectedProject) return
+
+    setIsCreatingQuickTask(true)
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: user.id,
+          project_id: selectedProject,
+          title: quickTaskTitle.trim(),
+          description: null,
+          emoji: null,
+          status: "todo",
+          priority: quickTaskPriority,
+          is_important: quickTaskImportant,
+          due_date: null,
+        })
+        .select(`
+        *,
+        projects (
+          name,
+          emoji
+        )
+      `)
+        .single()
+
+      if (error) {
+        console.error("Error creating quick task:", error)
+        throw error
+      }
+
+      if (data) {
+        setTasks((prevTasks) => [data, ...prevTasks])
+        setQuickTaskTitle("")
+        setQuickTaskPriority("medium")
+        setQuickTaskImportant(false)
+        setError("")
+      }
+    } catch (error: any) {
+      console.error("Error creating quick task:", error)
+      setError(`Failed to create task: ${getHumanReadableError(error.message)}`)
+    } finally {
+      setIsCreatingQuickTask(false)
+    }
+  }
+
+  const handleQuickTaskKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      createQuickTask()
     }
   }
 
@@ -279,7 +447,7 @@ export default function Dashboard() {
 
       {/* Quick Task Creation */}
       <div className="mb-6 sm:mb-8">
-        <Card className="bg-gradient-to-r from-red-950/20 to-red-900/10 border-red-900/30 quick-task-creation">
+        <Card className="bg-gradient-to-r from-red-950/20 to-red-900/10 border-red-900/30">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-500/10 rounded-lg">
@@ -854,91 +1022,220 @@ export default function Dashboard() {
                   } ${index === 0 ? "border-yellow-500/50" : ""}`}
                 >
                   <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          {index === 0 && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>}
-                          {task.emoji && <span className="text-lg sm:text-xl">{task.emoji}</span>}
-                          <h3 className="text-white font-medium text-base sm:text-lg truncate">{task.title}</h3>
-                          {task.is_important && (
-                            <Star className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 fill-current flex-shrink-0" />
-                          )}
+                    {editingTask === task.id ? (
+                      // Edit Mode
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Edit className="h-4 w-4 text-yellow-400" />
+                          <span className="text-yellow-400 text-sm font-medium">Editing Task</span>
                         </div>
 
-                        {task.description && (
-                          <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{task.description}</p>
-                        )}
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-gray-300 text-sm font-medium mb-2 block">Title</label>
+                            <Input
+                              value={editForm.title}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                              className="bg-gray-900/50 border-gray-600 text-white"
+                              placeholder="Task title..."
+                            />
+                          </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                          <div className="flex items-center gap-1">
-                            {task.status === "in_progress" ? (
-                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-400" />
-                            ) : (
-                              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-400" />
-                            )}
-                            <Badge
-                              className={
-                                task.status === "in_progress"
-                                  ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
-                                  : "bg-red-900/20 text-red-400 border-red-900/50"
-                              }
-                            >
-                              {task.status.replace("_", " ")}
-                            </Badge>
+                          <div>
+                            <label className="text-gray-300 text-sm font-medium mb-2 block">Description</label>
+                            <Textarea
+                              value={editForm.description}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                              className="bg-gray-900/50 border-gray-600 text-white min-h-[80px]"
+                              placeholder="Task description..."
+                            />
+                          </div>
 
-                          <Badge
-                            className={
-                              task.priority === "high"
-                                ? "bg-red-900/20 text-red-400 border-red-900/50"
-                                : task.priority === "medium"
-                                  ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
-                                  : "bg-gray-900/20 text-gray-400 border-gray-700"
-                            }
-                          >
-                            {task.priority} priority
-                          </Badge>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-gray-300 text-sm font-medium mb-2 block">Priority</label>
+                              <Select
+                                value={editForm.priority}
+                                onValueChange={(value) => setEditForm((prev) => ({ ...prev, priority: value }))}
+                              >
+                                <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-gray-600">
+                                  <SelectItem value="low" className="text-gray-300">
+                                    Low Priority
+                                  </SelectItem>
+                                  <SelectItem value="medium" className="text-gray-300">
+                                    Medium Priority
+                                  </SelectItem>
+                                  <SelectItem value="high" className="text-gray-300">
+                                    High Priority
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                          {task.due_date && (
-                            <Badge
-                              className={`${
-                                new Date(task.due_date) < new Date() && task.status !== "done"
-                                  ? "bg-red-900/20 text-red-400 border-red-900/50"
-                                  : new Date(task.due_date).toDateString() === new Date().toDateString()
-                                    ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
-                                    : "bg-blue-900/20 text-blue-400 border-blue-900/50"
-                              }`}
-                            >
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {new Date(task.due_date) < new Date() && task.status !== "done"
-                                ? "Overdue"
-                                : new Date(task.due_date).toDateString() === new Date().toDateString()
-                                  ? "Due Today"
-                                  : new Date(task.due_date).toLocaleDateString()}
-                            </Badge>
-                          )}
-
-                          {task.projects && (
-                            <Badge className="bg-blue-900/20 text-blue-400 border-blue-900/50">
-                              {task.projects.emoji} {task.projects.name}
-                            </Badge>
-                          )}
+                            <div className="flex items-end">
+                              <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editForm.is_important}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, is_important: e.target.checked }))}
+                                  className="rounded border-gray-600 bg-gray-900/50 text-red-500 focus:ring-red-500"
+                                />
+                                <span className="text-gray-300 text-sm">Important</span>
+                                <Star className="h-4 w-4 text-red-400" />
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Quick Action Buttons */}
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 flex-shrink-0">
-                        <Link href="/dashboard/active">
+                        <div className="flex gap-2 pt-2">
                           <Button
+                            onClick={saveTaskEdit}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Save className="h-3 w-3 mr-1" />
+                            Save
+                          </Button>
+                          <Button
+                            onClick={cancelTaskEdit}
                             variant="outline"
                             size="sm"
-                            className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent text-xs px-2 py-1"
+                            className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
                           >
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="hidden sm:inline ml-1">View</span>
+                            <X className="h-3 w-3 mr-1" />
+                            Cancel
                           </Button>
-                        </Link>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      // View Mode
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            {index === 0 && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>}
+                            {task.emoji && <span className="text-lg sm:text-xl">{task.emoji}</span>}
+                            <h3 className="text-white font-medium text-base sm:text-lg truncate">{task.title}</h3>
+                            {task.is_important && (
+                              <Star className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 fill-current flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {task.description && (
+                            <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{task.description}</p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm mb-3">
+                            <div className="flex items-center gap-1">
+                              {task.status === "in_progress" ? (
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-400" />
+                              ) : (
+                                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-400" />
+                              )}
+                              <Badge
+                                className={
+                                  task.status === "in_progress"
+                                    ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                    : "bg-red-900/20 text-red-400 border-red-900/50"
+                                }
+                              >
+                                {task.status.replace("_", " ")}
+                              </Badge>
+                            </div>
+
+                            <Badge
+                              className={
+                                task.priority === "high"
+                                  ? "bg-red-900/20 text-red-400 border-red-900/50"
+                                  : task.priority === "medium"
+                                    ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                    : "bg-gray-900/20 text-gray-400 border-gray-700"
+                              }
+                            >
+                              {task.priority} priority
+                            </Badge>
+
+                            {task.due_date && (
+                              <Badge
+                                className={`${
+                                  new Date(task.due_date) < new Date() && task.status !== "done"
+                                    ? "bg-red-900/20 text-red-400 border-red-900/50"
+                                    : new Date(task.due_date).toDateString() === new Date().toDateString()
+                                      ? "bg-yellow-900/20 text-yellow-400 border-yellow-900/50"
+                                      : "bg-blue-900/20 text-blue-400 border-blue-900/50"
+                                }`}
+                              >
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(task.due_date) < new Date() && task.status !== "done"
+                                  ? "Overdue"
+                                  : new Date(task.due_date).toDateString() === new Date().toDateString()
+                                    ? "Due Today"
+                                    : new Date(task.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+
+                            {task.projects && (
+                              <Badge className="bg-blue-900/20 text-blue-400 border-blue-900/50">
+                                {task.projects.emoji} {task.projects.name}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Quick Status Change */}
+                          <div className="flex flex-wrap gap-2">
+                            {task.status !== "in_progress" && (
+                              <Button
+                                onClick={() => updateTaskStatus(task.id, "in_progress")}
+                                variant="outline"
+                                size="sm"
+                                className="border-yellow-700 text-yellow-400 hover:bg-yellow-900/20 bg-transparent text-xs px-2 py-1"
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                Start
+                              </Button>
+                            )}
+
+                            {task.status === "in_progress" && (
+                              <Button
+                                onClick={() => updateTaskStatus(task.id, "todo")}
+                                variant="outline"
+                                size="sm"
+                                className="border-gray-700 text-gray-400 hover:bg-gray-800 bg-transparent text-xs px-2 py-1"
+                              >
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Pause
+                              </Button>
+                            )}
+
+                            <Button
+                              onClick={() => updateTaskStatus(task.id, "done")}
+                              variant="outline"
+                              size="sm"
+                              className="border-green-700 text-green-400 hover:bg-green-900/20 bg-transparent text-xs px-2 py-1"
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Complete
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-1 flex-shrink-0">
+                          <Button
+                            onClick={() => startEditingTask(task)}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-700 text-blue-400 hover:bg-blue-900/20 bg-transparent text-xs px-2 py-1"
+                          >
+                            <Edit className="h-3 w-3" />
+                            <span className="hidden sm:inline ml-1">Edit</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -963,17 +1260,63 @@ export default function Dashboard() {
               </Card>
             )}
 
-            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 3 && (
-              <div className="text-center pt-4">
-                <Link href="/dashboard/active">
-                  <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent">
-                    View All Active Tasks (
-                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length})
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            )}
+            {/* See All Tasks CTA */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-4">
+              <Link href="/dashboard/active">
+                <Card className="bg-black/40 border-gray-700/30 hover:border-yellow-500/50 transition-all duration-200 cursor-pointer group">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <AlertCircle className="h-5 w-5 text-yellow-400 group-hover:text-yellow-300" />
+                        <div>
+                          <h3 className="text-white font-medium text-sm">See All Active Tasks</h3>
+                          <p className="text-gray-400 text-xs">
+                            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length} total
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-gray-500 group-hover:text-yellow-400 transition-colors" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/dashboard/completed">
+                <Card className="bg-black/40 border-gray-700/30 hover:border-green-500/50 transition-all duration-200 cursor-pointer group">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-400 group-hover:text-green-300" />
+                        <div>
+                          <h3 className="text-white font-medium text-sm">View Completed Tasks</h3>
+                          <p className="text-gray-400 text-xs">
+                            {tasks.filter((task) => task.status === "done").length} completed
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-gray-500 group-hover:text-green-400 transition-colors" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/dashboard/create">
+                <Card className="bg-black/40 border-gray-700/30 hover:border-red-500/50 transition-all duration-200 cursor-pointer group">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Plus className="h-5 w-5 text-red-400 group-hover:text-red-300" />
+                        <div>
+                          <h3 className="text-white font-medium text-sm">Create New Task</h3>
+                          <p className="text-gray-400 text-xs">Add to your workflow</p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-gray-500 group-hover:text-red-400 transition-colors" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
           </div>
         </div>
       </main>
