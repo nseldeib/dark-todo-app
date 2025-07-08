@@ -402,26 +402,24 @@ export default function Dashboard() {
             {/* Active Tasks */}
             <Card className="bg-gradient-to-br from-red-950/20 to-red-900/10 border-red-900/30">
               <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between">
-                    <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-400 flex-shrink-0" />
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-bold text-white">
-                        {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length}
-                      </div>
-                      <div className="text-xs text-red-400 font-medium">
-                        {tasks.length > 0
-                          ? Math.round(
-                              (tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length /
-                                tasks.length) *
-                                100,
-                            )
-                          : 0}
-                        %
-                      </div>
-                    </div>
+                <div className="flex flex-col items-center text-center space-y-3">
+                  <div className="text-3xl sm:text-4xl font-bold text-white">
+                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length}
                   </div>
-                  <p className="text-gray-400 text-sm font-medium">Active Tasks</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    <AlertCircle className="h-6 w-6 sm:h-7 sm:w-7 text-red-400" />
+                    <p className="text-red-400 text-sm font-medium">Active Tasks</p>
+                  </div>
+                  <div className="text-xs text-red-400/70 font-medium">
+                    {tasks.length > 0
+                      ? Math.round(
+                          (tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length /
+                            tasks.length) *
+                            100,
+                        )
+                      : 0}
+                    % of total
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -429,22 +427,20 @@ export default function Dashboard() {
             {/* Completed Tasks */}
             <Card className="bg-gradient-to-br from-green-950/20 to-green-900/10 border-green-900/30">
               <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 flex-shrink-0" />
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-bold text-white">
-                        {tasks.filter((task) => task.status === "done").length}
-                      </div>
-                      <div className="text-xs text-green-400 font-medium">
-                        {tasks.length > 0
-                          ? Math.round((tasks.filter((task) => task.status === "done").length / tasks.length) * 100)
-                          : 0}
-                        %
-                      </div>
-                    </div>
+                <div className="flex flex-col items-center text-center space-y-3">
+                  <div className="text-3xl sm:text-4xl font-bold text-white">
+                    {tasks.filter((task) => task.status === "done").length}
                   </div>
-                  <p className="text-gray-400 text-sm font-medium">Completed</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    <CheckCircle className="h-6 w-6 sm:h-7 sm:w-7 text-green-400" />
+                    <p className="text-green-400 text-sm font-medium">Completed</p>
+                  </div>
+                  <div className="text-xs text-green-400/70 font-medium">
+                    {tasks.length > 0
+                      ? Math.round((tasks.filter((task) => task.status === "done").length / tasks.length) * 100)
+                      : 0}
+                    % completion rate
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -452,26 +448,24 @@ export default function Dashboard() {
             {/* In Progress Tasks */}
             <Card className="bg-gradient-to-br from-yellow-950/20 to-yellow-900/10 border-yellow-900/30">
               <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 flex-shrink-0" />
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-bold text-white">
-                        {tasks.filter((task) => task.status === "in_progress").length}
-                      </div>
-                      <div className="text-xs text-yellow-400 font-medium">
-                        {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
-                          ? Math.round(
-                              (tasks.filter((task) => task.status === "in_progress").length /
-                                tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
-                                100,
-                            )
-                          : 0}
-                        %
-                      </div>
-                    </div>
+                <div className="flex flex-col items-center text-center space-y-3">
+                  <div className="text-3xl sm:text-4xl font-bold text-white">
+                    {tasks.filter((task) => task.status === "in_progress").length}
                   </div>
-                  <p className="text-gray-400 text-sm font-medium">In Progress</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    <Clock className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-400" />
+                    <p className="text-yellow-400 text-sm font-medium">In Progress</p>
+                  </div>
+                  <div className="text-xs text-yellow-400/70 font-medium">
+                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
+                      ? Math.round(
+                          (tasks.filter((task) => task.status === "in_progress").length /
+                            tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
+                            100,
+                        )
+                      : 0}
+                    % of active
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -479,21 +473,18 @@ export default function Dashboard() {
             {/* Important Tasks */}
             <Card className="bg-gradient-to-br from-purple-950/20 to-purple-900/10 border-purple-900/30">
               <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Star className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400 fill-current flex-shrink-0" />
-                    <div className="text-right">
-                      <div className="text-xl sm:text-2xl font-bold text-white">
-                        {
-                          tasks.filter(
-                            (task) => task.is_important && task.status !== "done" && task.status !== "canceled",
-                          ).length
-                        }
-                      </div>
-                      <div className="text-xs text-purple-400 font-medium">Priority</div>
-                    </div>
+                <div className="flex flex-col items-center text-center space-y-3">
+                  <div className="text-3xl sm:text-4xl font-bold text-white">
+                    {
+                      tasks.filter((task) => task.is_important && task.status !== "done" && task.status !== "canceled")
+                        .length
+                    }
                   </div>
-                  <p className="text-gray-400 text-sm font-medium">Important</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    <Star className="h-6 w-6 sm:h-7 sm:w-7 text-purple-400 fill-current" />
+                    <p className="text-purple-400 text-sm font-medium">Important</p>
+                  </div>
+                  <div className="text-xs text-purple-400/70 font-medium">High priority items</div>
                 </div>
               </CardContent>
             </Card>
