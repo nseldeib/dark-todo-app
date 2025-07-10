@@ -60,11 +60,11 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
     summary: "",
     content: "",
     tags: [],
-    category_id: "",
+    category_id: undefined,
     status: "draft",
     priority: "medium",
     is_public: false,
-    rating: null,
+    rating: undefined,
     related_links: [],
   })
 
@@ -146,11 +146,11 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
         summary: "",
         content: "",
         tags: [],
-        category_id: "",
+        category_id: undefined,
         status: "draft",
         priority: "medium",
         is_public: false,
-        rating: null,
+        rating: undefined,
         related_links: [],
       })
       setError("")
@@ -223,7 +223,7 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
       summary: entry.summary || "",
       content: entry.content || "",
       tags: entry.tags || [],
-      category_id: entry.category_id || "",
+      category_id: entry.category_id || undefined,
       status: entry.status,
       priority: entry.priority,
       is_public: entry.is_public,
@@ -240,11 +240,11 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
       summary: "",
       content: "",
       tags: [],
-      category_id: "",
+      category_id: undefined,
       status: "draft",
       priority: "medium",
       is_public: false,
-      rating: null,
+      rating: undefined,
       related_links: [],
     })
   }
@@ -507,13 +507,18 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
                 <div>
                   <label className="text-gray-300 text-sm font-medium mb-2 block">Category</label>
                   <Select
-                    value={editForm.category_id || ""}
-                    onValueChange={(value) => setEditForm({ ...editForm, category_id: value })}
+                    value={editForm.category_id || "none"}
+                    onValueChange={(value) =>
+                      setEditForm({ ...editForm, category_id: value === "none" ? undefined : value })
+                    }
                   >
                     <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-gray-600">
+                      <SelectItem value="none" className="text-gray-300">
+                        No Category
+                      </SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id} className="text-gray-300">
                           <div className="flex items-center">
@@ -600,16 +605,16 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
                 <div>
                   <label className="text-gray-300 text-sm font-medium mb-2 block">Rating</label>
                   <Select
-                    value={editForm.rating?.toString() || ""}
+                    value={editForm.rating?.toString() || "none"}
                     onValueChange={(value) =>
-                      setEditForm({ ...editForm, rating: value ? Number.parseInt(value) : null })
+                      setEditForm({ ...editForm, rating: value === "none" ? undefined : Number.parseInt(value) })
                     }
                   >
                     <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
                       <SelectValue placeholder="No rating" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-gray-600">
-                      <SelectItem value="" className="text-gray-300">
+                      <SelectItem value="none" className="text-gray-300">
                         No rating
                       </SelectItem>
                       {[1, 2, 3, 4, 5].map((rating) => (
@@ -709,13 +714,18 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
                         <div>
                           <label className="text-gray-300 text-sm font-medium mb-2 block">Category</label>
                           <Select
-                            value={editForm.category_id || ""}
-                            onValueChange={(value) => setEditForm({ ...editForm, category_id: value })}
+                            value={editForm.category_id || "none"}
+                            onValueChange={(value) =>
+                              setEditForm({ ...editForm, category_id: value === "none" ? undefined : value })
+                            }
                           >
                             <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
                               <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent className="bg-gray-900 border-gray-600">
+                              <SelectItem value="none" className="text-gray-300">
+                                No Category
+                              </SelectItem>
                               {categories.map((category) => (
                                 <SelectItem key={category.id} value={category.id} className="text-gray-300">
                                   <div className="flex items-center">
@@ -800,16 +810,19 @@ export function WikiWidget({ userId }: WikiWidgetProps) {
                         <div>
                           <label className="text-gray-300 text-sm font-medium mb-2 block">Rating</label>
                           <Select
-                            value={editForm.rating?.toString() || ""}
+                            value={editForm.rating?.toString() || "none"}
                             onValueChange={(value) =>
-                              setEditForm({ ...editForm, rating: value ? Number.parseInt(value) : null })
+                              setEditForm({
+                                ...editForm,
+                                rating: value === "none" ? undefined : Number.parseInt(value),
+                              })
                             }
                           >
                             <SelectTrigger className="bg-gray-900/50 border-gray-600 text-white">
                               <SelectValue placeholder="No rating" />
                             </SelectTrigger>
                             <SelectContent className="bg-gray-900 border-gray-600">
-                              <SelectItem value="" className="text-gray-300">
+                              <SelectItem value="none" className="text-gray-300">
                                 No rating
                               </SelectItem>
                               {[1, 2, 3, 4, 5].map((rating) => (

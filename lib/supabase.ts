@@ -5,78 +5,66 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export type Task = {
+export interface Task {
   id: string
   user_id: string
-  project_id: string | null
+  project_id: string
   title: string
-  description: string | null
-  emoji: string | null
-  status: string
-  priority: string
+  description?: string
+  status: "todo" | "in_progress" | "done" | "canceled"
+  priority: "low" | "medium" | "high"
+  due_date?: string
   is_important: boolean
-  due_date: string | null
-  completed_at: string | null
+  emoji?: string
   created_at: string
   updated_at: string
+  completed_at?: string
   projects?: {
     name: string
-    emoji: string | null
+    emoji: string
   }
 }
 
-export type Project = {
+export interface Project {
   id: string
   user_id: string
   name: string
-  description: string | null
-  emoji: string | null
+  description?: string
+  emoji?: string
+  color?: string
   created_at: string
   updated_at: string
 }
 
-export type ChecklistItem = {
-  id: string
-  task_id: string
-  text: string
-  is_completed: boolean
-  created_at: string
-}
-
-export type User = {
-  id: string
-  email: string
-  username: string | null
-  high_score: number
-  challenges_completed: string[]
-  created_at: string
-  updated_at: string
-}
-
-export type WikiCategory = {
+export interface WikiCategory {
   id: string
   user_id: string
   name: string
+  description?: string
   color: string
   created_at: string
   updated_at: string
 }
 
-export type WikiEntry = {
+export interface WikiEntry {
   id: string
   user_id: string
+  category_id?: string
   title: string
-  summary: string | null
-  content: string | null
-  tags: string[]
-  category_id: string | null
+  summary?: string
+  content?: string
+  tags?: string[]
   status: "draft" | "published" | "archived"
   priority: "low" | "medium" | "high"
   is_public: boolean
-  rating: number | null
-  related_links: Array<{ url: string; title: string }>
-  file_attachments: Array<{ name: string; url: string; size: number }>
+  rating?: number
+  related_links?: Array<{ url: string; title: string }>
+  file_attachments?: Array<{ url: string; name: string; size: number }>
   created_at: string
   updated_at: string
-  wiki_categories?: WikiCategory
+  wiki_categories?: {
+    id: string
+    name: string
+    color: string
+  }
 }
