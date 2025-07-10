@@ -52,3 +52,31 @@ export type User = {
   created_at: string
   updated_at: string
 }
+
+export type WikiCategory = {
+  id: string
+  user_id: string
+  name: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export type WikiEntry = {
+  id: string
+  user_id: string
+  title: string
+  summary: string | null
+  content: string | null
+  tags: string[]
+  category_id: string | null
+  status: "draft" | "published" | "archived"
+  priority: "low" | "medium" | "high"
+  is_public: boolean
+  rating: number | null
+  related_links: Array<{ url: string; title: string }>
+  file_attachments: Array<{ name: string; url: string; size: number }>
+  created_at: string
+  updated_at: string
+  wiki_categories?: WikiCategory
+}

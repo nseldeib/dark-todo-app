@@ -28,6 +28,7 @@ import {
   CheckSquare,
   ArrowRight,
 } from "lucide-react"
+import { WikiWidget } from "@/components/wiki-widget"
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -1141,6 +1142,11 @@ export default function Dashboard() {
               </Link>
             </div>
           </div>
+        </div>
+
+        {/* Personal Wiki Widget */}
+        <div className="mb-6 sm:mb-8">
+          <WikiWidget userId={user.id} />
         </div>
       </main>
     </div>
