@@ -25,3 +25,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# CodeYam local files (contains secrets and local database)
+.codeyam
+codeyam-dev.sh
+
+# Claude Code local configuration
+.claude
+!.claude/rules/
