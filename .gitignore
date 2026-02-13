@@ -33,3 +33,6 @@ codeyam-dev.sh
 # Claude Code local configuration
 .claude
 !.claude/rules/
+
+# Backup files
+*.bak*

@@ -29,16 +29,109 @@ import {
   ArrowRight,
 } from "lucide-react"
 
-export default function Dashboard() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProject, setSelectedProject] = useState<string>("")
-  const [error, setError] = useState("")
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
+/**
+ * Dashboard Component - Dark Todo App
+ *
+ * Visual Modes (auto-triggered by data):
+ * 1. CRISIS MODE (RED theme): Triggered when 5+ tasks are overdue
+ *    - Red pulsing background, animated skull, "🚨 CRISIS MODE" badge
+ *    - All stats wrapped in red border, critical alert banner
+ *
+ * 2. MULTI-PROJECT MODE (BLUE theme): Triggered when projects.length > 1
+ *    - Blue/purple project selector card, blue header accents
+ *    - "Task Diversity Summary" card, "🎨 Diverse Workload" badge
+ *
+ * 3. VICTORY MODE (GREEN theme): Triggered when all tasks status === "done"
+ *    - Green success alert "🎉 LEGENDARY!", 100% completion stats
+ *    - Empty active section with "All caught up!" message
+ *
+ * 4. EDITING MODE (FORM UI): Triggered when forceEditingTaskId is set
+ *    - Shows Input/Textarea/Select form fields, Save/Cancel buttons
+ *    - Yellow "Editing Task" indicator
+ *
+ * CodeYam Scenarios: Generates diverse simulations for all 4 modes
+ *
+ * For CodeYam simulations, pass initial data to bypass Supabase fetching:
+ * - initialTasks: Array of Task objects
+ * - initialProjects: Array of Project objects (at least one required)
+ * - initialUser: User object with { email: string }
+ * - initialSelectedProject: ID of the selected project (should match a project in initialProjects)
+ * - demoMode: true (enables edge case visuals like missing emoji indicators)
+ *
+ * State control props:
+ * - forceLoading: true (shows loading screen)
+ * - forceError: "error message" (shows error banner)
+ * - forceEditingTaskId: "task-id" (shows edit form for that task)
+ * - forceShowMobileMenu: true (expands mobile menu)
+ *
+ * Key Attributes for Scenarios:
+ * - overdueCount: Number of tasks past due_date (>= 5 triggers CRISIS MODE)
+ * - projects.length: Number of projects (> 1 triggers MULTI-PROJECT MODE)
+ * - all tasks done: When displayedTasks.filter(t => t.status === "done").length === displayedTasks.length
+ * - editingTask: When set, shows form UI instead of task card
+ *
+ * Example Scenario Data:
+ *
+ * CRISIS MODE SCENARIO:
+ * - 6 tasks, all with status "todo" or "in_progress"
+ * - All tasks with priority "high"
+ * - All tasks with due_date 2-6 days in the past
+ * - Single project (projects.length = 1)
+ * - No forceEditingTaskId
+ *
+ * MULTI-PROJECT SCENARIO:
+ * - 3 projects in initialProjects
+ * - 10-12 tasks with mix of statuses (40% todo, 30% in_progress, 30% done)
+ * - Mix of all priorities (high, medium, low)
+ * - NO overdue tasks (all due_date in future or null)
+ * - No forceEditingTaskId
+ *
+ * VICTORY SCENARIO:
+ * - 6-7 tasks, ALL with status "done"
+ * - Mix of priorities
+ * - Single project (projects.length = 1)
+ * - No forceEditingTaskId
+ *
+ * EDITING SCENARIO:
+ * - 5-6 tasks with mix of statuses
+ * - Set forceEditingTaskId to first task's ID
+ * - First task should have long title (>50 chars)
+ * - Single project, no overdue tasks
+ */
+export default function Dashboard({
+  demoMode = false,
+  forceLoading = false,
+  forceError = null as string | null,
+  forceEditingTaskId = null as string | null,
+  forceShowMobileMenu = false,
+  initialTasks = null as Task[] | null,
+  initialProjects = null as Project[] | null,
+  initialUser = null as any,
+  initialSelectedProject = null as string | null,
+}: {
+  demoMode?: boolean
+  forceLoading?: boolean
+  forceError?: string | null
+  forceEditingTaskId?: string | null
+  forceShowMobileMenu?: boolean
+  initialTasks?: Task[] | null
+  initialProjects?: Project[] | null
+  initialUser?: any
+  initialSelectedProject?: string | null
+} = {}) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks || [])
+  const [loading, setLoading] = useState(
+    initialTasks !== null && initialProjects !== null && initialUser !== null
+      ? false
+      : (forceLoading || true)
+  )
+  const [user, setUser] = useState<any>(initialUser || { email: "demo@darktodo.app" })
+  const [projects, setProjects] = useState<Project[]>(initialProjects || [])
+  const [selectedProject, setSelectedProject] = useState<string>(initialSelectedProject || "")
+  const [error, setError] = useState(forceError || "")
+  const [showMobileMenu, setShowMobileMenu] = useState(forceShowMobileMenu)
   const [showStatsDetails, setShowStatsDetails] = useState(false)
-  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<string | null>(forceEditingTaskId)
   const [editForm, setEditForm] = useState<{
     title: string
     description: string
@@ -51,6 +144,28 @@ export default function Dashboard() {
     is_important: false,
   })
   const router = useRouter()
+
+  // In demo mode with multiple projects, filter tasks by selected project
+  // In production mode, tasks are already filtered by fetchTasks
+  const displayedTasks =
+    initialTasks !== null && selectedProject
+      ? tasks.filter((t) => t.project_id === selectedProject)
+      : tasks
+
+  // KEY VISUAL ATTRIBUTE: Calculate crisis mode (for extreme visual changes)
+  // When overdueCount >= 5, entire UI shifts to RED pulsing theme
+  const overdueCount = displayedTasks.filter(
+    (t) =>
+      t.due_date &&
+      new Date(t.due_date) < new Date() &&
+      t.status !== "done" &&
+      t.status !== "canceled",
+  ).length
+  const isCrisisMode = overdueCount >= 5
+
+  // KEY VISUAL ATTRIBUTE: Multi-project mode triggers BLUE theme
+  // When projects.length > 1, shows project selector and diversity UI
+  const isMultiProjectMode = projects.length > 1
 
   const getHumanReadableError = (errorMessage: string): string => {
     if (errorMessage.includes("Network")) {
@@ -71,6 +186,12 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    // Skip ALL data fetching if initial data is provided (for CodeYam simulations/demos/testing)
+    if (initialTasks !== null && initialProjects !== null && initialUser !== null) {
+      // Simulation mode: All data provided, no need to fetch
+      return
+    }
+    // Production mode: Fetch data from Supabase
     checkUser()
   }, [])
 
@@ -89,7 +210,10 @@ export default function Dashboard() {
       }
 
       if (!user) {
-        router.push("/sign-in")
+        // Only redirect in production (not simulations)
+        if (typeof window !== 'undefined') {
+          router.push("/sign-in")
+        }
         return
       }
 
@@ -165,6 +289,13 @@ export default function Dashboard() {
   }
 
   const fetchTasks = async (projectId: string) => {
+    // In simulation mode with initial data, just update selectedProject without fetching
+    if (initialTasks !== null && initialProjects !== null) {
+      setSelectedProject(projectId)
+      return
+    }
+
+    // Production mode: fetch from Supabase
     try {
       const { data, error } = await supabase
         .from("tasks")
@@ -196,9 +327,19 @@ export default function Dashboard() {
   }
 
   const handleSignOut = async () => {
+    // Skip database operations in simulation mode
+    const isSimulationMode = initialTasks !== null && initialProjects !== null && initialUser !== null
+
     try {
-      await supabase.auth.signOut()
-      router.push("/sign-in")
+      // Only call Supabase in production mode
+      if (!isSimulationMode) {
+        await supabase.auth.signOut()
+      }
+
+      // Only redirect in production (not simulations)
+      if (typeof window !== 'undefined' && !isSimulationMode) {
+        router.push("/sign-in")
+      }
     } catch (error: any) {
       console.error("Error signing out:", error)
       setError(`Error signing out: ${getHumanReadableError(error.message)}`)
@@ -206,6 +347,9 @@ export default function Dashboard() {
   }
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
+    // Skip database operations in simulation mode (when initial data is provided)
+    const isSimulationMode = initialTasks !== null && initialProjects !== null && initialUser !== null
+
     try {
       const updateData: any = { status: newStatus }
 
@@ -217,14 +361,17 @@ export default function Dashboard() {
         updateData.completed_at = null
       }
 
-      const { error } = await supabase.from("tasks").update(updateData).eq("id", taskId)
+      // Only update database in production mode
+      if (!isSimulationMode) {
+        const { error } = await supabase.from("tasks").update(updateData).eq("id", taskId)
 
-      if (error) {
-        console.error("Database update error:", error)
-        throw error
+        if (error) {
+          console.error("Database update error:", error)
+          throw error
+        }
       }
 
-      // Update local state
+      // Update local state (works in both production and simulation)
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === taskId ? { ...task, status: newStatus, completed_at: updateData.completed_at } : task,
@@ -251,24 +398,30 @@ export default function Dashboard() {
   const saveTaskEdit = async () => {
     if (!editingTask) return
 
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          title: editForm.title,
-          description: editForm.description,
-          priority: editForm.priority,
-          is_important: editForm.is_important,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingTask)
+    // Skip database operations in simulation mode
+    const isSimulationMode = initialTasks !== null && initialProjects !== null && initialUser !== null
 
-      if (error) {
-        console.error("Database update error:", error)
-        throw error
+    try {
+      // Only update database in production mode
+      if (!isSimulationMode) {
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            title: editForm.title,
+            description: editForm.description,
+            priority: editForm.priority,
+            is_important: editForm.is_important,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingTask)
+
+        if (error) {
+          console.error("Database update error:", error)
+          throw error
+        }
       }
 
-      // Update local state
+      // Update local state (works in both production and simulation)
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === editingTask
@@ -328,15 +481,39 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950">
+    <div
+      className={`min-h-screen ${
+        isCrisisMode
+          ? "bg-gradient-to-br from-red-950 via-red-900 to-black animate-pulse-slow"
+          : "bg-gradient-to-br from-black via-gray-900 to-red-950"
+      }`}
+    >
       {/* Header */}
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm sticky top-0 z-40">
+      <header
+        className={`border-b ${
+          isCrisisMode
+            ? "border-red-500 bg-red-950/70 shadow-red-500/50 shadow-lg"
+            : isMultiProjectMode
+              ? "border-blue-500/50 bg-black/50"
+              : "border-gray-800 bg-black/50"
+        } backdrop-blur-sm sticky top-0 z-40`}
+      >
         <div className="container mx-auto px-4 py-3 sm:py-4">
           {/* Mobile Header */}
           <div className="flex items-center justify-between lg:hidden">
             <div className="flex items-center space-x-2">
-              <Skull className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
+              <Skull
+                className={`h-6 w-6 sm:h-8 sm:w-8 ${
+                  isCrisisMode ? "text-red-400 animate-bounce" : "text-red-500"
+                }`}
+              />
               <h1 className="text-lg sm:text-xl font-bold text-white">DarkTodo</h1>
+              {isCrisisMode && (
+                <Badge className="bg-red-500 text-white animate-pulse ml-2">🚨 CRISIS</Badge>
+              )}
+              {isMultiProjectMode && !isCrisisMode && (
+                <Badge className="bg-blue-500 text-white ml-2">📁 Multi-Project</Badge>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -351,8 +528,16 @@ export default function Dashboard() {
           {/* Desktop Header */}
           <div className="hidden lg:flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Skull className="h-8 w-8 text-red-500" />
+              <Skull
+                className={`h-8 w-8 ${isCrisisMode ? "text-red-400 animate-bounce" : "text-red-500"}`}
+              />
               <h1 className="text-2xl font-bold text-white">DarkTodo</h1>
+              {isCrisisMode && (
+                <Badge className="bg-red-500 text-white text-base animate-pulse">🚨 CRISIS MODE</Badge>
+              )}
+              {isMultiProjectMode && !isCrisisMode && (
+                <Badge className="bg-blue-500 text-white text-base">📁 Multi-Project Mode</Badge>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-400 hidden xl:inline">Welcome, {user?.email}</span>
@@ -397,24 +582,77 @@ export default function Dashboard() {
             <p className="text-gray-400 text-sm sm:text-base">Your productivity at a glance</p>
           </div>
 
+          {/* Project Selector - Shows when multiple projects */}
+          {projects.length > 1 && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-950/50 to-purple-950/50 border-2 border-blue-500/50 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <FolderPlus className="h-5 w-5 text-blue-400" />
+                <label className="text-blue-300 text-base font-bold">
+                  Switch Project ({projects.length} total)
+                </label>
+              </div>
+              <Select
+                value={selectedProject}
+                onValueChange={(id) => {
+                  setSelectedProject(id)
+                  fetchTasks(id)
+                }}
+              >
+                <SelectTrigger className="bg-blue-900/30 border-blue-500 text-white max-w-md h-12 text-lg font-semibold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-blue-500">
+                  {projects.map((project) => (
+                    <SelectItem
+                      key={project.id}
+                      value={project.id}
+                      className="text-white text-base hover:bg-blue-900/50"
+                    >
+                      <span className="text-xl">{project.emoji}</span> {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-blue-400/70 text-sm mt-2">
+                📊 Viewing tasks from: <strong>{projects.find((p) => p.id === selectedProject)?.name}</strong>
+              </p>
+            </div>
+          )}
+
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <div
+            className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 ${
+              isCrisisMode ? "p-4 bg-red-950/30 border-2 border-red-500 rounded-lg" : ""
+            }`}
+          >
+            {isCrisisMode && (
+              <div className="col-span-2 lg:col-span-4 text-center mb-2">
+                <Badge className="bg-red-600 text-white text-lg px-4 py-2 animate-pulse">
+                  ⚠️ SYSTEM ALERT: {overdueCount} OVERDUE TASKS ⚠️
+                </Badge>
+              </div>
+            )}
             {/* Active Tasks */}
-            <Card className="bg-gradient-to-br from-red-950/20 to-red-900/10 border-red-900/30">
+            <Card
+              className={`bg-gradient-to-br from-red-950/20 to-red-900/10 ${
+                isCrisisMode ? "border-red-500 border-2 shadow-red-500/50 shadow-lg" : "border-red-900/30"
+              }`}
+            >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="text-3xl sm:text-4xl font-bold text-white">
-                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length}
+                    {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length}
                   </div>
                   <div className="flex flex-col items-center space-y-1">
                     <AlertCircle className="h-6 w-6 sm:h-7 sm:w-7 text-red-400" />
                     <p className="text-red-400 text-sm font-medium">Active Tasks</p>
                   </div>
                   <div className="text-xs text-red-400/70 font-medium">
-                    {tasks.length > 0
+                    {displayedTasks.length > 0
                       ? Math.round(
-                          (tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length /
-                            tasks.length) *
+                          (displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled")
+                            .length /
+                            displayedTasks.length) *
                             100,
                         )
                       : 0}
@@ -429,15 +667,18 @@ export default function Dashboard() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="text-3xl sm:text-4xl font-bold text-white">
-                    {tasks.filter((task) => task.status === "done").length}
+                    {displayedTasks.filter((task) => task.status === "done").length}
                   </div>
                   <div className="flex flex-col items-center space-y-1">
                     <CheckCircle className="h-6 w-6 sm:h-7 sm:w-7 text-green-400" />
                     <p className="text-green-400 text-sm font-medium">Completed</p>
                   </div>
                   <div className="text-xs text-green-400/70 font-medium">
-                    {tasks.length > 0
-                      ? Math.round((tasks.filter((task) => task.status === "done").length / tasks.length) * 100)
+                    {displayedTasks.length > 0
+                      ? Math.round(
+                          (displayedTasks.filter((task) => task.status === "done").length / displayedTasks.length) *
+                            100,
+                        )
                       : 0}
                     % completion rate
                   </div>
@@ -450,17 +691,18 @@ export default function Dashboard() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="text-3xl sm:text-4xl font-bold text-white">
-                    {tasks.filter((task) => task.status === "in_progress").length}
+                    {displayedTasks.filter((task) => task.status === "in_progress").length}
                   </div>
                   <div className="flex flex-col items-center space-y-1">
                     <Clock className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-400" />
                     <p className="text-yellow-400 text-sm font-medium">In Progress</p>
                   </div>
                   <div className="text-xs text-yellow-400/70 font-medium">
-                    {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
+                    {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
                       ? Math.round(
-                          (tasks.filter((task) => task.status === "in_progress").length /
-                            tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
+                          (displayedTasks.filter((task) => task.status === "in_progress").length /
+                            displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled")
+                              .length) *
                             100,
                         )
                       : 0}
@@ -476,8 +718,9 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="text-3xl sm:text-4xl font-bold text-white">
                     {
-                      tasks.filter((task) => task.is_important && task.status !== "done" && task.status !== "canceled")
-                        .length
+                      displayedTasks.filter(
+                        (task) => task.is_important && task.status !== "done" && task.status !== "canceled",
+                      ).length
                     }
                   </div>
                   <div className="flex flex-col items-center space-y-1">
@@ -518,7 +761,7 @@ export default function Dashboard() {
                       <div>
                         <h3 className="text-white font-medium">Active Tasks</h3>
                         <p className="text-gray-400 text-xs">
-                          {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length} pending
+                          {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length} pending
                         </p>
                       </div>
                     </div>
@@ -537,7 +780,7 @@ export default function Dashboard() {
                       <div>
                         <h3 className="text-white font-medium">Completed</h3>
                         <p className="text-gray-400 text-xs">
-                          {tasks.filter((task) => task.status === "done").length} finished
+                          {displayedTasks.filter((task) => task.status === "done").length} finished
                         </p>
                       </div>
                     </div>
@@ -606,19 +849,19 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) => task.priority === "high" && task.status !== "done" && task.status !== "canceled",
                         ).length
                       }
                     </span>
                     <Badge className="bg-red-900/20 text-red-400 border-red-900/50 text-xs">
-                      {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
+                      {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
                         ? Math.round(
-                            (tasks.filter(
+                            (displayedTasks.filter(
                               (task) =>
                                 task.priority === "high" && task.status !== "done" && task.status !== "canceled",
                             ).length /
-                              tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
+                              displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
                               100,
                           )
                         : 0}
@@ -634,19 +877,19 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) => task.priority === "medium" && task.status !== "done" && task.status !== "canceled",
                         ).length
                       }
                     </span>
                     <Badge className="bg-yellow-900/20 text-yellow-400 border-yellow-900/50 text-xs">
-                      {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
+                      {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
                         ? Math.round(
-                            (tasks.filter(
+                            (displayedTasks.filter(
                               (task) =>
                                 task.priority === "medium" && task.status !== "done" && task.status !== "canceled",
                             ).length /
-                              tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
+                              displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
                               100,
                           )
                         : 0}
@@ -662,18 +905,18 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) => task.priority === "low" && task.status !== "done" && task.status !== "canceled",
                         ).length
                       }
                     </span>
                     <Badge className="bg-gray-900/20 text-gray-400 border-gray-700 text-xs">
-                      {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
+                      {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length > 0
                         ? Math.round(
-                            (tasks.filter(
+                            (displayedTasks.filter(
                               (task) => task.priority === "low" && task.status !== "done" && task.status !== "canceled",
                             ).length /
-                              tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
+                              displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length) *
                               100,
                           )
                         : 0}
@@ -701,7 +944,7 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) =>
                             task.due_date &&
                             new Date(task.due_date) < new Date() &&
@@ -721,7 +964,7 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) =>
                             task.due_date &&
                             new Date(task.due_date).toDateString() === new Date().toDateString() &&
@@ -741,7 +984,7 @@ export default function Dashboard() {
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
                       {
-                        tasks.filter(
+                        displayedTasks.filter(
                           (task) =>
                             task.due_date &&
                             new Date(task.due_date) > new Date() &&
@@ -777,17 +1020,17 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-300">Total Tasks</span>
                   <span className="text-white font-semibold">
-                    {tasks.filter((task) => task.project_id === selectedProject).length}
+                    {displayedTasks.filter((task) => task.project_id === selectedProject).length}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-300">Completion Rate</span>
                   <Badge className="bg-blue-900/20 text-blue-400 border-blue-900/50 text-xs">
-                    {tasks.filter((task) => task.project_id === selectedProject).length > 0
+                    {displayedTasks.filter((task) => task.project_id === selectedProject).length > 0
                       ? Math.round(
-                          (tasks.filter((task) => task.project_id === selectedProject && task.status === "done")
+                          (displayedTasks.filter((task) => task.project_id === selectedProject && task.status === "done")
                             .length /
-                            tasks.filter((task) => task.project_id === selectedProject).length) *
+                            displayedTasks.filter((task) => task.project_id === selectedProject).length) *
                             100,
                         )
                       : 0}
@@ -809,15 +1052,132 @@ export default function Dashboard() {
           </Alert>
         )}
 
+        {/* Extreme State Warnings */}
+        {displayedTasks.filter(
+          (t) =>
+            t.due_date &&
+            new Date(t.due_date) < new Date() &&
+            t.status !== "done" &&
+            t.status !== "canceled",
+        ).length >= 5 && (
+          <Alert className="mb-6 border-red-500 bg-red-950/40 animate-pulse">
+            <AlertCircle className="h-5 w-5 text-red-400" />
+            <AlertDescription className="text-red-300 font-semibold">
+              ⚠️ CRITICAL: You have{" "}
+              {
+                displayedTasks.filter(
+                  (t) =>
+                    t.due_date &&
+                    new Date(t.due_date) < new Date() &&
+                    t.status !== "done" &&
+                    t.status !== "canceled",
+                ).length
+              }{" "}
+              overdue tasks! Immediate action required.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {displayedTasks.length === 0 && (
+          <Alert className="mb-6 border-blue-500/50 bg-blue-950/20">
+            <AlertDescription className="text-blue-300">
+              🎯 Welcome! Your dark empire awaits. Create your first task to begin your journey.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* KEY VISUAL ATTRIBUTE: Victory mode - GREEN theme when all tasks completed */}
+        {displayedTasks.filter((t) => t.status === "done").length === displayedTasks.length &&
+          displayedTasks.length > 0 && (
+            <Alert className="mb-6 border-green-500 bg-green-950/40">
+              <CheckCircle className="h-5 w-5 text-green-400" />
+              <AlertDescription className="text-green-300 font-semibold">
+                🎉 LEGENDARY! All {displayedTasks.length} tasks completed. You've conquered your dark todo empire!
+              </AlertDescription>
+            </Alert>
+          )}
+
         {/* Top Priority Tasks Section */}
         <div className="mb-6 sm:mb-8">
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Top Priority Tasks</h2>
-            <p className="text-gray-400 text-sm sm:text-base">Your most important active tasks</p>
+          <div className="mb-4 sm:mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                {isCrisisMode ? "🚨 URGENT: Overdue Tasks" : "Top Priority Tasks"}
+              </h2>
+              <p className={`text-sm sm:text-base ${isCrisisMode ? "text-red-400" : "text-gray-400"}`}>
+                {isCrisisMode
+                  ? "Critical attention required - all tasks are overdue!"
+                  : isMultiProjectMode
+                    ? `Showing diverse tasks from ${projects.find((p) => p.id === selectedProject)?.name}`
+                    : "Your most important active tasks"}
+              </p>
+            </div>
+            {isMultiProjectMode && !isCrisisMode && (
+              <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm px-3 py-1">
+                🎨 Diverse Workload
+              </Badge>
+            )}
           </div>
 
+          {/* Visual Summary for Multi-Project Mode */}
+          {isMultiProjectMode && !isCrisisMode && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-950/40 to-blue-950/40 border border-purple-500/30 rounded-lg">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <CheckSquare className="h-4 w-4 text-purple-400" />
+                Task Diversity Summary
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span className="text-gray-300">
+                    {displayedTasks.filter((t) => t.status === "in_progress").length} In Progress
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-gray-300">
+                    {displayedTasks.filter((t) => t.status === "todo").length} To Do
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-gray-300">
+                    {displayedTasks.filter((t) => t.status === "done").length} Completed
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="h-3 w-3 text-purple-400 fill-current" />
+                  <span className="text-gray-300">
+                    {displayedTasks.filter((t) => t.is_important).length} Important
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Crisis Mode Warning */}
+          {isCrisisMode && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-red-900/50 to-orange-900/50 border-2 border-red-500 rounded-lg animate-pulse">
+              <div className="flex items-center gap-3 mb-3">
+                <AlertCircle className="h-8 w-8 text-red-400 animate-bounce" />
+                <div>
+                  <h3 className="text-red-300 font-bold text-lg">ALL TASKS REQUIRE IMMEDIATE ATTENTION</h3>
+                  <p className="text-red-400 text-sm">
+                    {overdueCount} overdue {overdueCount === 1 ? "task" : "tasks"} - Every item below is past its
+                    deadline
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <Badge className="bg-red-600 text-white">High Priority Only</Badge>
+                <Badge className="bg-orange-600 text-white">All Overdue</Badge>
+                <Badge className="bg-red-700 text-white">Critical Status</Badge>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3 sm:space-y-4">
-            {tasks
+            {displayedTasks
               .filter((task) => task.status !== "done" && task.status !== "canceled")
               .sort((a, b) => {
                 // Sort by priority (high > medium > low) then by importance then by due date
@@ -837,17 +1197,27 @@ export default function Dashboard() {
 
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
               })
-              .slice(0, 3)
+              .slice(
+                0,
+                displayedTasks.filter((t) => t.status !== "done" && t.status !== "canceled").length <= 5 ? 10 : 3,
+              )
               .map((task, index) => (
                 <Card
                   key={task.id}
-                  className={`bg-gray-800/50 border-gray-700 hover:border-gray-600 transition-all duration-200 ${
-                    task.is_important ? "ring-1 ring-red-500/30" : ""
-                  } ${index === 0 ? "border-yellow-500/50" : ""}`}
+                  className={`${
+                    isCrisisMode
+                      ? "bg-gradient-to-r from-red-950/80 to-red-900/60 border-red-500 shadow-lg shadow-red-500/30"
+                      : isMultiProjectMode
+                        ? "bg-gradient-to-r from-gray-800/50 to-gray-700/50 border-gray-600"
+                        : "bg-gray-800/50 border-gray-700"
+                  } hover:border-gray-600 transition-all duration-200 ${
+                    task.is_important && !isCrisisMode ? "ring-1 ring-red-500/30" : ""
+                  } ${index === 0 && !isCrisisMode ? "border-yellow-500/50" : ""}`}
                 >
                   <CardContent className="p-4 sm:p-6">
+                    {/* KEY VISUAL ATTRIBUTE: Editing mode - shows FORM UI when editingTask matches task.id */}
                     {editingTask === task.id ? (
-                      // Edit Mode
+                      // Edit Mode - Completely different visual with form fields
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-4">
                           <Edit className="h-4 w-4 text-yellow-400" />
@@ -940,12 +1310,30 @@ export default function Dashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
                             {index === 0 && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>}
-                            {task.emoji && <span className="text-lg sm:text-xl">{task.emoji}</span>}
-                            <h3 className="text-white font-medium text-base sm:text-lg truncate">{task.title}</h3>
+                            {task.emoji ? (
+                              <span className="text-lg sm:text-xl">{task.emoji}</span>
+                            ) : demoMode ? (
+                              <div className="w-6 h-6 border-2 border-dashed border-gray-600 rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">
+                                ?
+                              </div>
+                            ) : null}
+                            <h3
+                              className={`text-white font-medium text-base sm:text-lg ${task.title.length > 50 ? "" : "truncate"}`}
+                            >
+                              {task.title}
+                            </h3>
                             {task.is_important && (
                               <Star className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 fill-current flex-shrink-0" />
                             )}
                           </div>
+
+                          {/* Add visual warning for extremely long titles */}
+                          {task.title.length > 50 && (
+                            <Badge className="bg-orange-900/20 text-orange-400 border-orange-900/50 text-xs mb-2">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Long title
+                            </Badge>
+                          )}
 
                           {task.description && (
                             <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{task.description}</p>
@@ -1063,7 +1451,7 @@ export default function Dashboard() {
                 </Card>
               ))}
 
-            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 0 && (
+            {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length === 0 && (
               <Card className="bg-gray-800/30 border-gray-700/50">
                 <CardContent className="p-6 sm:p-8 text-center">
                   <div className="text-gray-500 mb-4">
@@ -1094,7 +1482,7 @@ export default function Dashboard() {
                         <div>
                           <h3 className="text-white font-medium text-sm">See All Active Tasks</h3>
                           <p className="text-gray-400 text-xs">
-                            {tasks.filter((task) => task.status !== "done" && task.status !== "canceled").length} total
+                            {displayedTasks.filter((task) => task.status !== "done" && task.status !== "canceled").length} total
                           </p>
                         </div>
                       </div>
@@ -1113,7 +1501,7 @@ export default function Dashboard() {
                         <div>
                           <h3 className="text-white font-medium text-sm">View Completed Tasks</h3>
                           <p className="text-gray-400 text-xs">
-                            {tasks.filter((task) => task.status === "done").length} completed
+                            {displayedTasks.filter((task) => task.status === "done").length} completed
                           </p>
                         </div>
                       </div>
